@@ -13,6 +13,7 @@
 #   8. Resumen final del pipeline
 # =====================================================================
 
+---
 name: "Validate — EcoCloud Edge"
 
 on:
@@ -36,7 +37,7 @@ jobs:
         run: pip install yamllint
 
       - name: "Ejecutar yamllint en manifests/ y ansible/"
-        # Se ejecuta directamente. Si creas el .yamllint.yml en la raíz, 
+        # Se ejecuta directamente. Si creas el .yamllint.yml en la raíz,
         # yamllint lo detectará automáticamente sin necesidad de indicarlo con -c.
         run: yamllint manifests/ ansible/ .github/workflows/
 
@@ -65,7 +66,8 @@ jobs:
               -strict \
               -ignore-missing-schemas \
               -schema-location default \
-              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+              -schema-location \
+              'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
               -summary
 
   # ──────────────────────────────────────────────────────────
