@@ -133,12 +133,52 @@ jobs:
           echo "OK — No se encontraron secretos hardcodeados"
 
   # ──────────────────────────────────────────────────────────
+  # JOB 6: Build y push de la imagen Docker del middleware
+  # Solo se ejecuta en push a main (no en PRs)
+  # ──────────────────────────────────────────────────────────
+  build-middleware:
+    name: "Build & Push Middleware Image"
+    runs-on: ubuntu-latest
+    needs: [yaml-lint, kubeconform, python-lint, secret-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Login a GitHub Container Registry"
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Extraer metadata para la imagen"
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/middleware
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest
+
+      - name: "Build y push"
+        uses: docker/build-push-action@v5
+        with:
+          context: ./middleware
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # ──────────────────────────────────────────────────────────
   # JOB 6: Resumen final del pipeline
   # ──────────────────────────────────────────────────────────
   summary:
     name: "Pipeline Summary"
     runs-on: ubuntu-latest
-    needs: [yaml-lint, kubeconform, ansible-lint, python-lint, secret-scan]
+    needs: [yaml-lint, kubeconform, ansible-lint, python-lint, secret-scan, build-middleware]
     if: always()
     steps:
       - name: "Mostrar resultado"
