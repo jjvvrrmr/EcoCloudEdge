@@ -20,11 +20,19 @@
   roles:
     - k3s_worker
 
-# 4. Bootstrap de GitOps (Solo en el Maestro)
-- name: Instalar y configurar ArgoCD para despliegue automático
+# 4. Bootstrap de Controladores y GitOps (Solo en el Maestro)
+- name: Instalar controladores base y ArgoCD
   hosts: master
   become: yes
   tasks:
+    - name: Desplegar Sealed Secrets Controller
+      shell: kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.26.2/controller.yaml
+      changed_when: false
+
+    - name: Esperar a que Sealed Secrets Controller esté operativo
+      shell: kubectl wait --for=condition=ready pod -l name=sealed-secrets-controller -n kube-system --timeout=120s
+      changed_when: false
+
     - name: Crear namespace para ArgoCD de forma idempotente
       shell: kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
       changed_when: false
