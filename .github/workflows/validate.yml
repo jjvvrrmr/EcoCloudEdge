@@ -173,9 +173,41 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
+          
   # ──────────────────────────────────────────────────────────
-  # JOB 7: Resumen final del pipeline
+  # JOB 7: Trigger sync en ArgoCD tras push a main
+  # ──────────────────────────────────────────────────────────
+  argocd-sync:
+    name: "ArgoCD Sync Trigger"
+    runs-on: ubuntu-latest
+    needs: [build-middleware]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: "Instalar ArgoCD CLI"
+        run: |
+          curl -sSL -o argocd \
+            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+
+      - name: "Login a ArgoCD"
+        run: |
+          argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username admin \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
+            --insecure
+
+      - name: "Sincronizar todas las Applications"
+        run: |
+          argocd app sync ecocloud-namespaces --async
+          argocd app sync ecocloud-longhorn --async
+          argocd app sync ecocloud-identity --async
+          argocd app sync ecocloud-nextcloud --async
+          argocd app sync ecocloud-ai --async
+          argocd app sync ecocloud-monitoring --async
+          
+  # ──────────────────────────────────────────────────────────
+  # JOB 8: Resumen final del pipeline
   # ──────────────────────────────────────────────────────────
   summary:
     name: "Pipeline Summary"
