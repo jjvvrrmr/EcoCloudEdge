@@ -83,7 +83,7 @@ ecocloud-edge/
 ```bash
 # 1. Clona el repositorio
 git clone https://github.com/jjvvrrmr/EcoCloudEdge.git
-cd ecocloud-edge
+cd EcoCloudEdge
 
 # 2. Configura el inventario
 cp ansible/inventory.ini.example ansible/inventory.ini
