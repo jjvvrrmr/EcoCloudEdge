@@ -33,21 +33,17 @@ spec:
     spec:
       containers:
         - name: nextcloud
-          image: lscr.io/linuxserver/nextcloud:latest
-          env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: "Europe/Madrid"
-          ports:
-            - containerPort: 80
-          volumeMounts:
-            - name: nc-data
-              mountPath: /config
-            - name: nc-data
-              mountPath: /data
+          image: linuxserver/nextcloud:28.0.2
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1.5Gi"
+              cpu: "1500m"
+          envFrom:
+            - secretRef:
+                name: nextcloud-secret
       volumes:
         - name: nc-data
           persistentVolumeClaim:
@@ -71,14 +67,13 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: nextcloud-ingress
-  namespace: default
-  labels:
-    app: nextcloud
+  namespace: nextcloud
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   rules:
-    - host: nubes.ecocloud.local
+    - host: nextcloud.ecocloud.local
       http:
         paths:
           - path: /
@@ -88,3 +83,7 @@ spec:
                 name: nextcloud-svc
                 port:
                   number: 80
+  tls:
+    - hosts:
+        - nextcloud.ecocloud.local
+      secretName: nextcloud-tls-cert

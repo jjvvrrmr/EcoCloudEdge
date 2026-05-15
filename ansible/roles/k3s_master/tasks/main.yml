@@ -8,11 +8,13 @@
     path: /usr/local/bin/k3s
   register: k3s_binary
 
-- name: "Instalar k3s en el nodo maestro"
+- name: Instalara k3s en el nodo maestro
   shell: |
-    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik --disable servicelb" sh -
-  when: not k3s_binary.stat.exists
-  register: k3s_install
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik --disable servicelb --disable local-storage" sh -
+  environment:
+    K3S_TOKEN: "{{ k3s_token }}"
+  args:
+    creates: /etc/rancher/k3s/k3s.yaml
 
 - name: "Esperar a que k3s esté listo"
   command: k3s kubectl get nodes

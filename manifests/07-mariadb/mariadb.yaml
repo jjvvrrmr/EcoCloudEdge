@@ -35,21 +35,17 @@ spec:
     spec:
       containers:
         - name: mariadb
-          image: mariadb:10.11
-          env:
-            - name: MYSQL_ROOT_PASSWORD
-              value: "${MYSQL_ROOT_PASSWORD}"
-            - name: MYSQL_DATABASE
-              value: "${MYSQL_DATABASE}"
-            - name: MYSQL_USER
-              value: "${MYSQL_USER}"
-            - name: MYSQL_PASSWORD
-              value: "${MYSQL_PASSWORD}"
-          ports:
-            - containerPort: 3306
-          volumeMounts:
-            - name: db-data
-              mountPath: /var/lib/mysql
+          image: mariadb:10.11.7
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          envFrom:
+            - secretRef:
+                name: mariadb-secret
       volumes:
         - name: db-data
           persistentVolumeClaim:

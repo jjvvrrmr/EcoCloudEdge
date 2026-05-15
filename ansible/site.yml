@@ -1,66 +1,46 @@
 ---
-# =============================================================
-# EcoCloud Edge — Playbook Maestro
-# Ejecutar: ansible-playbook -i inventory.ini site.yml
-# Para un hito concreto: --tags hito1  (hito1..hito6)
-# =============================================================
-
-- name: "Hito 1 — Preparación del SO y orquestación k3s"
-  hosts: k3s_cluster
-  gather_facts: true
+# 1. Aprovisionamiento Base (Todos los nodos)
+- name: Preparar configuración base del sistema operativo
+  hosts: all
+  become: yes
   roles:
-    - role: base
-      tags: [hito1, base]
+    - base
 
-- name: "Hito 1 — Despliegue Control Plane"
-  hosts: control_plane
-  gather_facts: false
+# 2. Despliegue del Plano de Control de Kubernetes
+- name: Desplegar nodo maestro de k3s
+  hosts: master
+  become: yes
   roles:
-    - role: k3s_master
-      tags: [hito1, k3s]
+    - k3s_master
 
-- name: "Hito 1 — Unión de Workers"
+# 3. Unión de los Nodos Trabajadores
+- name: Desplegar nodos workers de k3s
   hosts: workers
-  gather_facts: false
+  become: yes
   roles:
-    - role: k3s_worker
-      tags: [hito1, k3s]
+    - k3s_worker
 
-- name: "Hito 2 — Almacenamiento (Longhorn) y Tráfico (Traefik + MetalLB)"
-  hosts: control_plane
-  gather_facts: false
-  roles:
-    - role: longhorn
-      tags: [hito2, longhorn]
-    - role: traefik
-      tags: [hito2, traefik]
-    - role: metallb
-      tags: [hito2, metallb]
+# 4. Bootstrap de GitOps (Solo en el Maestro)
+- name: Instalar y configurar ArgoCD para despliegue automático
+  hosts: master
+  become: yes
+  tasks:
+    - name: Crear namespace para ArgoCD de forma idempotente
+      shell: kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+      changed_when: false
 
-- name: "Hito 3 — Identidad (LLDAP) y DNS (AdGuard)"
-  hosts: control_plane
-  gather_facts: false
-  roles:
-    - role: lldap
-      tags: [hito3, lldap]
+    - name: Instalar los manifiestos base de ArgoCD
+      shell: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      changed_when: false
 
-- name: "Hito 4 — Nube privada (MariaDB + Nextcloud)"
-  hosts: control_plane
-  gather_facts: false
-  roles:
-    - role: nextcloud
-      tags: [hito4, nextcloud]
+    - name: Esperar a que los pods de ArgoCD estén operativos
+      shell: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+      changed_when: false
+      
+    - name: Aplicar servicio LoadBalancer para ArgoCD
+      shell: kubectl apply -f {{ playbook_dir }}/../manifests/00-argocd/argocd-service.yaml
+      changed_when: false
 
-- name: "Hito 5 — IA On-Premise (Ollama + Middleware)"
-  hosts: control_plane
-  gather_facts: false
-  roles:
-    - role: ollama
-      tags: [hito5, ollama]
-
-- name: "Hito 6 — Monitorización (Prometheus + Grafana)"
-  hosts: control_plane
-  gather_facts: false
-  roles:
-    - role: monitoring
-      tags: [hito6, monitoring]
+    - name: Desplegar el patrón 'App of Apps' (Sincronización GitOps)
+      shell: kubectl apply -f {{ playbook_dir }}/../manifests/00-argocd/apps.yaml
+      changed_when: false
