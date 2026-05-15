@@ -1,4 +1,3 @@
----
 # =====================================================================
 # EcoCloud Edge — Pipeline CI
 # Se ejecuta en cada push y en cada Pull Request
@@ -10,6 +9,8 @@
 #   4. Lint del código Python del middleware (flake8)
 #   5. Escaneo de secretos hardcodeados (detect-secrets)
 #   6. Build y push de imagen Docker del middleware a GHCR
+#   7. Trigger sync en ArgoCD tras push a main
+#   8. Resumen final del pipeline
 # =====================================================================
 
 name: "Validate — EcoCloud Edge"
@@ -35,9 +36,9 @@ jobs:
         run: pip install yamllint
 
       - name: "Ejecutar yamllint en manifests/ y ansible/"
-        run: |
-          yamllint -c .yamllint.yml manifests/ ansible/ .github/workflows/ || \
-          yamllint manifests/ ansible/ .github/workflows/
+        # Se ejecuta directamente. Si creas el .yamllint.yml en la raíz, 
+        # yamllint lo detectará automáticamente sin necesidad de indicarlo con -c.
+        run: yamllint manifests/ ansible/ .github/workflows/
 
   # ──────────────────────────────────────────────────────────
   # JOB 2: Validación de manifiestos Kubernetes
@@ -173,7 +174,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          
+
   # ──────────────────────────────────────────────────────────
   # JOB 7: Trigger sync en ArgoCD tras push a main
   # ──────────────────────────────────────────────────────────
@@ -205,7 +206,7 @@ jobs:
           argocd app sync ecocloud-nextcloud --async
           argocd app sync ecocloud-ai --async
           argocd app sync ecocloud-monitoring --async
-          
+
   # ──────────────────────────────────────────────────────────
   # JOB 8: Resumen final del pipeline
   # ──────────────────────────────────────────────────────────
