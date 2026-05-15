@@ -127,7 +127,7 @@ jobs:
           if grep -r "EcoCloudAdmin2026\|EcoCloudDB2026\|EcoCloudRoot2026\|Nextcloud_pass\|AdminEcoCloud2026" \
             --include="*.yaml" --include="*.yml" --include="*.py" --include="*.txt" \
             --exclude="*sealedsecret*" \
-            --exclude-dir=".git" .; then
+            --exclude-dir=".git" --exclude-dir=".github" .; then
             echo "ERROR: Se encontraron secretos hardcodeados en el repositorio"
             echo "Usa variables de entorno o .env (ver .env.example)"
             exit 1
