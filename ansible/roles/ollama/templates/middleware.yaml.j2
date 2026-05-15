@@ -1,0 +1,57 @@
+---
+# ansible/roles/ollama/templates/middleware.yaml.j2
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: middleware-script
+  namespace: default
+data:
+  main.py: |
+    # Lee el archivo real desde el repositorio
+    # El contenido se inyecta por Ansible desde middleware/main.py
+    {{ lookup('file', playbook_dir + '/../middleware/main.py') | indent(4) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: middleware
+  namespace: default
+  labels:
+    app: middleware
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: middleware
+  template:
+    metadata:
+      labels:
+        app: middleware
+    spec:
+      containers:
+        - name: python-middleware
+          image: python:3.10-alpine
+          command: ["python", "/app/main.py"]
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: script-volume
+              mountPath: /app
+      volumes:
+        - name: script-volume
+          configMap:
+            name: middleware-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: middleware-svc
+  namespace: default
+  labels:
+    app: middleware
+spec:
+  selector:
+    app: middleware
+  ports:
+    - port: 5000
+      targetPort: 5000

@@ -1,0 +1,49 @@
+---
+# ansible/roles/nextcloud/tasks/main.yml
+# Hito 4 — Ecosistema de nube privada
+
+- name: "Copiar manifiesto de MariaDB"
+  template:
+    src: mariadb.yaml.j2
+    dest: /tmp/mariadb.yaml
+
+- name: "Aplicar MariaDB"
+  command: k3s kubectl apply -f /tmp/mariadb.yaml
+
+- name: "Esperar a que MariaDB esté Running"
+  command: >
+    k3s kubectl wait --namespace default
+    --for=condition=ready pod
+    --selector=app=mariadb
+    --timeout=180s
+  register: mariadb_ready
+  retries: 3
+  delay: 20
+  until: mariadb_ready.rc == 0
+
+- name: "Copiar manifiesto de Nextcloud"
+  template:
+    src: nextcloud.yaml.j2
+    dest: /tmp/nextcloud.yaml
+
+- name: "Aplicar Nextcloud + Ingress"
+  command: k3s kubectl apply -f /tmp/nextcloud.yaml
+
+- name: "Esperar a que Nextcloud esté Running (puede tardar ~5 min en primera ejecución)"
+  command: >
+    k3s kubectl wait --namespace default
+    --for=condition=ready pod
+    --selector=app=nextcloud
+    --timeout=360s
+  register: nextcloud_ready
+  retries: 3
+  delay: 30
+  until: nextcloud_ready.rc == 0
+
+- name: "Verificar pods del Hito 4"
+  command: k3s kubectl get pods -n default -l "app in (mariadb,nextcloud)"
+  register: hito4_pods
+
+- name: "Mostrar estado del Hito 4"
+  debug:
+    var: hito4_pods.stdout_lines

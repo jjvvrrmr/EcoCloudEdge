@@ -1,0 +1,23 @@
+---
+# manifests/01-namespaces/namespaces.yaml
+# Crear todos los namespaces del proyecto antes que cualquier otro recurso
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: longhorn-system
+  labels:
+    project: ecocloud-edge
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metallb-system
+  labels:
+    project: ecocloud-edge
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    project: ecocloud-edge

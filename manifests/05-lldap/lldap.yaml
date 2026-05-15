@@ -1,0 +1,87 @@
+---
+# manifests/05-lldap/lldap.yaml
+# VERSIÓN FINAL con las 3 correcciones documentadas en el TFG (sección 7.1)
+#
+# Corrección 1 — securityContext.fsGroup:1000
+#   Longhorn monta el volumen como root, LLDAP ejecuta como UID 1000 → CrashLoopBackOff
+#
+# Corrección 2 — LLDAP_LDAP_USER_PASS
+#   Obligatorio desde v0.6.x, no documentado en la guía oficial → Panic en Rust
+#
+# Corrección 3 — strategy.type: Recreate
+#   RollingUpdate intentaba levantar el nuevo pod antes de liberar el volumen RWO → interbloqueo
+#
+# IMPORTANTE: sustituye CAMBIA_ESTO por tus valores reales antes de aplicar
+# O usa: envsubst < lldap.yaml | kubectl apply -f -
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lldap-data
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lldap
+  namespace: default
+  labels:
+    app: lldap
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lldap
+  template:
+    metadata:
+      labels:
+        app: lldap
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: lldap
+          image: lldap/lldap:latest
+          ports:
+            - containerPort: 3890
+            - containerPort: 17170
+          env:
+            - name: LLDAP_JWT_SECRET
+              value: "${LLDAP_JWT_SECRET}"
+            - name: LLDAP_LDAP_BASE_DN
+              value: "dc=ecocloud,dc=local"
+            - name: LLDAP_LDAP_USER_PASS
+              value: "${LLDAP_LDAP_USER_PASS}"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: lldap-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lldap-svc
+  namespace: default
+  labels:
+    app: lldap
+spec:
+  selector:
+    app: lldap
+  ports:
+    - name: ldap
+      port: 3890
+      targetPort: 3890
+    - name: http
+      port: 17170
+      targetPort: 17170

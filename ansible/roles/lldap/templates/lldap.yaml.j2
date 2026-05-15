@@ -1,0 +1,74 @@
+---
+# ansible/roles/lldap/templates/lldap.yaml.j2
+# LLDAP — Manifiesto final con las 3 correcciones del TFG
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lldap-data
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lldap
+  namespace: default
+  labels:
+    app: lldap
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # Corrección 3: evita interbloqueo RWO con RollingUpdate
+  selector:
+    matchLabels:
+      app: lldap
+  template:
+    metadata:
+      labels:
+        app: lldap
+    spec:
+      securityContext:
+        fsGroup: 1000        # Corrección 1: Longhorn monta como root, LLDAP necesita UID 1000
+      containers:
+        - name: lldap
+          image: lldap/lldap:latest
+          ports:
+            - containerPort: 3890
+            - containerPort: 17170
+          env:
+            - name: LLDAP_JWT_SECRET
+              value: "{{ lldap_jwt_secret }}"
+            - name: LLDAP_LDAP_BASE_DN
+              value: "{{ lldap_base_dn | default('dc=ecocloud,dc=local') }}"
+            - name: LLDAP_LDAP_USER_PASS
+              value: "{{ lldap_ldap_user_pass }}"  # Corrección 2: obligatorio en v0.6.x
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: lldap-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lldap-svc
+  namespace: default
+  labels:
+    app: lldap               # Corrección de etiqueta (incidencia kubectl get svc vacío)
+spec:
+  selector:
+    app: lldap
+  ports:
+    - name: ldap
+      port: 3890
+      targetPort: 3890
+    - name: http
+      port: 17170
+      targetPort: 17170

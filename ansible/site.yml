@@ -1,0 +1,66 @@
+---
+# =============================================================
+# EcoCloud Edge — Playbook Maestro
+# Ejecutar: ansible-playbook -i inventory.ini site.yml
+# Para un hito concreto: --tags hito1  (hito1..hito6)
+# =============================================================
+
+- name: "Hito 1 — Preparación del SO y orquestación k3s"
+  hosts: k3s_cluster
+  gather_facts: true
+  roles:
+    - role: base
+      tags: [hito1, base]
+
+- name: "Hito 1 — Despliegue Control Plane"
+  hosts: control_plane
+  gather_facts: false
+  roles:
+    - role: k3s_master
+      tags: [hito1, k3s]
+
+- name: "Hito 1 — Unión de Workers"
+  hosts: workers
+  gather_facts: false
+  roles:
+    - role: k3s_worker
+      tags: [hito1, k3s]
+
+- name: "Hito 2 — Almacenamiento (Longhorn) y Tráfico (Traefik + MetalLB)"
+  hosts: control_plane
+  gather_facts: false
+  roles:
+    - role: longhorn
+      tags: [hito2, longhorn]
+    - role: traefik
+      tags: [hito2, traefik]
+    - role: metallb
+      tags: [hito2, metallb]
+
+- name: "Hito 3 — Identidad (LLDAP) y DNS (AdGuard)"
+  hosts: control_plane
+  gather_facts: false
+  roles:
+    - role: lldap
+      tags: [hito3, lldap]
+
+- name: "Hito 4 — Nube privada (MariaDB + Nextcloud)"
+  hosts: control_plane
+  gather_facts: false
+  roles:
+    - role: nextcloud
+      tags: [hito4, nextcloud]
+
+- name: "Hito 5 — IA On-Premise (Ollama + Middleware)"
+  hosts: control_plane
+  gather_facts: false
+  roles:
+    - role: ollama
+      tags: [hito5, ollama]
+
+- name: "Hito 6 — Monitorización (Prometheus + Grafana)"
+  hosts: control_plane
+  gather_facts: false
+  roles:
+    - role: monitoring
+      tags: [hito6, monitoring]

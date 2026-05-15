@@ -1,0 +1,34 @@
+# ── SECRETOS — NUNCA A GIT ──────────────────────────────────
+.env
+*.env
+secrets/
+kubeconfig
+kubeconfig.yaml
+*.kubeconfig
+
+# ── Ansible ─────────────────────────────────────────────────
+ansible/inventory.ini
+ansible/*.retry
+*.retry
+
+# ── OS / Editor ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*Zone.Identifier
+*:Zone.Identifier
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ── Logs ────────────────────────────────────────────────────
+*.log
+logs/

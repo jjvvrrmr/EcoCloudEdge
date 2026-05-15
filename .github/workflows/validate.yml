@@ -1,0 +1,151 @@
+---
+# .github/workflows/validate.yml
+# =====================================================================
+# EcoCloud Edge — Pipeline CI
+# Se ejecuta en cada push y en cada Pull Request
+#
+# Qué hace:
+#   1. Lint de todos los YAML del repo (yamllint)
+#   2. Validación de manifiestos Kubernetes contra la API de k8s (kubeconform)
+#   3. Lint del playbook Ansible (ansible-lint)
+#   4. Lint del código Python del middleware (flake8)
+#   5. Escaneo de secretos hardcodeados (detect-secrets)
+# =====================================================================
+
+name: "Validate — EcoCloud Edge"
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # ──────────────────────────────────────────────────────────
+  # JOB 1: YAML lint — todos los archivos .yaml/.yml del repo
+  # ──────────────────────────────────────────────────────────
+  yaml-lint:
+    name: "YAML Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Instalar yamllint"
+        run: pip install yamllint
+
+      - name: "Ejecutar yamllint en manifests/ y ansible/"
+        run: |
+          yamllint -c .yamllint.yml manifests/ ansible/ .github/workflows/ || \
+          yamllint manifests/ ansible/ .github/workflows/
+
+  # ──────────────────────────────────────────────────────────
+  # JOB 2: Validación de manifiestos Kubernetes
+  # ──────────────────────────────────────────────────────────
+  kubeconform:
+    name: "Kubernetes Manifest Validation"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Instalar kubeconform"
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz -C /usr/local/bin
+
+      - name: "Validar manifiestos (ignorando templates con variables Jinja2)"
+        run: |
+          find manifests/ -name "*.yaml" \
+            ! -name "*.j2" \
+            | grep -v "template" \
+            | xargs kubeconform \
+              -strict \
+              -ignore-missing-schemas \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+              -summary
+
+  # ──────────────────────────────────────────────────────────
+  # JOB 3: Ansible lint
+  # ──────────────────────────────────────────────────────────
+  ansible-lint:
+    name: "Ansible Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Instalar ansible-lint"
+        run: pip install ansible-lint
+
+      - name: "Ejecutar ansible-lint en el playbook maestro"
+        run: |
+          cd ansible
+          ansible-lint site.yml --exclude roles/
+
+  # ──────────────────────────────────────────────────────────
+  # JOB 4: Python lint (middleware)
+  # ──────────────────────────────────────────────────────────
+  python-lint:
+    name: "Python Lint (middleware)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Instalar flake8"
+        run: pip install flake8
+
+      - name: "Lint del middleware Python"
+        run: flake8 middleware/ --max-line-length=100 --ignore=E501
+
+  # ──────────────────────────────────────────────────────────
+  # JOB 5: Detección de secretos accidentales
+  # ──────────────────────────────────────────────────────────
+  secret-scan:
+    name: "Secret Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necesario para escanear todo el historial
+
+      - name: "Escanear secretos con detect-secrets"
+        uses: reviewdog/action-detect-secrets@v0
+        with:
+          reporter: github-pr-check
+          fail_on_error: true
+        continue-on-error: true  # No bloquear si el action no está disponible
+
+      - name: "Búsqueda simple de patrones de contraseñas hardcodeadas"
+        run: |
+          echo "Buscando patrones de secretos..."
+          # Busca contraseñas típicas del proyecto que NO deberían estar en el repo
+          if grep -r "EcoCloudAdmin2026\|EcoCloudDB2026\|EcoCloudRoot2026\|Nextcloud_pass\|AdminEcoCloud2026" \
+            --include="*.yaml" --include="*.yml" --include="*.py" --include="*.txt" \
+            --exclude-dir=".git" .; then
+            echo "ERROR: Se encontraron secretos hardcodeados en el repositorio"
+            echo "Usa variables de entorno o .env (ver .env.example)"
+            exit 1
+          fi
+          echo "OK — No se encontraron secretos hardcodeados"
+
+  # ──────────────────────────────────────────────────────────
+  # JOB 6: Resumen final del pipeline
+  # ──────────────────────────────────────────────────────────
+  summary:
+    name: "Pipeline Summary"
+    runs-on: ubuntu-latest
+    needs: [yaml-lint, kubeconform, ansible-lint, python-lint, secret-scan]
+    if: always()
+    steps:
+      - name: "Mostrar resultado"
+        run: |
+          echo "=== EcoCloud Edge CI Pipeline ==="
+          echo "yaml-lint:    ${{ needs.yaml-lint.result }}"
+          echo "kubeconform:  ${{ needs.kubeconform.result }}"
+          echo "ansible-lint: ${{ needs.ansible-lint.result }}"
+          echo "python-lint:  ${{ needs.python-lint.result }}"
+          echo "secret-scan:  ${{ needs.secret-scan.result }}"

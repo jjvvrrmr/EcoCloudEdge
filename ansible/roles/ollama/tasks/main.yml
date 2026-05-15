@@ -1,0 +1,62 @@
+---
+# ansible/roles/ollama/tasks/main.yml
+# Hito 5 — IA On-Premise
+# IMPORTANTE: Se usa TinyLlama (~670MB) porque modelos 7B requieren 14GB RAM
+# Los nodos tienen 4GB — OOMKiller mataría cualquier modelo más grande (incidencia documentada)
+
+- name: "Copiar manifiesto de Ollama"
+  template:
+    src: ollama.yaml.j2
+    dest: /tmp/ollama.yaml
+
+- name: "Aplicar Ollama"
+  command: k3s kubectl apply -f /tmp/ollama.yaml
+
+- name: "Esperar a que Ollama esté Running"
+  command: >
+    k3s kubectl wait --namespace default
+    --for=condition=ready pod
+    --selector=app=ollama
+    --timeout=300s
+  register: ollama_ready
+  retries: 5
+  delay: 20
+  until: ollama_ready.rc == 0
+
+- name: "Descargar modelo TinyLlama (650MB aprox, paciencia con la red de 100Mbps)"
+  command: k3s kubectl exec deploy/ollama -- ollama pull tinyllama
+  register: model_pull
+  async: 600
+  poll: 30
+
+- name: "Copiar código Python del middleware al nodo"
+  copy:
+    src: ../../../middleware/main.py
+    dest: /tmp/middleware-main.py
+
+- name: "Copiar manifiesto del middleware"
+  template:
+    src: middleware.yaml.j2
+    dest: /tmp/middleware.yaml
+
+- name: "Aplicar middleware Python"
+  command: k3s kubectl apply -f /tmp/middleware.yaml
+
+- name: "Esperar a que el middleware esté Running"
+  command: >
+    k3s kubectl wait --namespace default
+    --for=condition=ready pod
+    --selector=app=middleware
+    --timeout=120s
+  register: middleware_ready
+  retries: 3
+  delay: 15
+  until: middleware_ready.rc == 0
+
+- name: "Verificar pods del Hito 5"
+  command: k3s kubectl get pods -n default -l "app in (ollama,middleware)"
+  register: hito5_pods
+
+- name: "Mostrar estado del Hito 5"
+  debug:
+    var: hito5_pods.stdout_lines

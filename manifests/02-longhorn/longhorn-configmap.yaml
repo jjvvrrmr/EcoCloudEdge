@@ -1,0 +1,12 @@
+---
+# manifests/02-longhorn/longhorn-configmap.yaml
+# APLICAR ANTES que longhorn.yaml
+# Limita réplicas a 2 para no saturar la red de 100 Mbps (incidencia TFG sección 7.3.1)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: longhorn-default-setting
+  namespace: longhorn-system
+data:
+  default-setting.yaml: |-
+    default-replica-count: 2

@@ -1,0 +1,39 @@
+---
+# ansible/roles/monitoring/templates/monitoring-helmchart.yaml.j2
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: prometheus-stack
+  namespace: kube-system
+spec:
+  chart: kube-prometheus-stack
+  repo: https://prometheus-community.github.io/helm-charts
+  targetNamespace: monitoring
+  valuesContent: |-
+    alertmanager:
+      enabled: false
+    grafana:
+      adminPassword: "{{ grafana_admin_password }}"
+      ingress:
+        enabled: true
+        hosts:
+          - {{ grafana_domain | default('monitor.ecocloud.local') }}
+        annotations:
+          traefik.ingress.kubernetes.io/router.entrypoints: web
+    prometheus:
+      prometheusSpec:
+        resources:
+          requests:
+            memory: 200Mi
+          limits:
+            memory: 500Mi
+        retention: 2d
+    kubeStateMetrics:
+      enabled: true
+    nodeExporter:
+      enabled: true

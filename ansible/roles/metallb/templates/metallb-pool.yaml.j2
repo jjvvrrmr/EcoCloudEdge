@@ -1,0 +1,16 @@
+---
+# ansible/roles/metallb/templates/metallb-pool.yaml.j2
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: ecocloud-ip-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - {{ metallb_pool_start | default('192.168.1.80') }}-{{ metallb_pool_end | default('192.168.1.90') }}
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: ecocloud-l2-adv
+  namespace: metallb-system

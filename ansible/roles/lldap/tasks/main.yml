@@ -1,0 +1,54 @@
+---
+# ansible/roles/lldap/tasks/main.yml
+# Hito 3 — LLDAP con las 3 correcciones documentadas en el TFG:
+#   1. securityContext.fsGroup:1000  → CrashLoopBackOff por permisos en Longhorn
+#   2. LLDAP_LDAP_USER_PASS          → Panic en Rust, variable obligatoria en v0.6.x
+#   3. strategy.type: Recreate       → Interbloqueo RWO con RollingUpdate
+
+- name: "Copiar manifiesto corregido de LLDAP"
+  template:
+    src: lldap.yaml.j2
+    dest: /tmp/lldap.yaml
+
+- name: "Aplicar manifiesto de LLDAP (PVC + Deployment + Service)"
+  command: k3s kubectl apply -f /tmp/lldap.yaml
+
+- name: "Esperar a que LLDAP esté Running"
+  command: >
+    k3s kubectl wait --namespace default
+    --for=condition=ready pod
+    --selector=app=lldap
+    --timeout=180s
+  register: lldap_ready
+  retries: 3
+  delay: 15
+  until: lldap_ready.rc == 0
+
+- name: "Copiar manifiesto de AdGuard Home"
+  template:
+    src: adguard.yaml.j2
+    dest: /tmp/adguard.yaml
+
+- name: "Aplicar manifiesto de AdGuard Home"
+  command: k3s kubectl apply -f /tmp/adguard.yaml
+
+- name: "Esperar a que AdGuard reciba IP externa de MetalLB"
+  command: >
+    k3s kubectl get svc adguard-svc -n default
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: adguard_ip
+  until: adguard_ip.stdout != ""
+  retries: 12
+  delay: 10
+
+- name: "Mostrar IP asignada a AdGuard"
+  debug:
+    msg: "AdGuard Home disponible en http://{{ adguard_ip.stdout }}:3000"
+
+- name: "Verificar pods de identidad y DNS"
+  command: k3s kubectl get pods -n default -l "app in (lldap,adguard)"
+  register: hito3_pods
+
+- name: "Mostrar estado del Hito 3"
+  debug:
+    var: hito3_pods.stdout_lines

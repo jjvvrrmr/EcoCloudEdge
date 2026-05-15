@@ -1,0 +1,33 @@
+---
+# ansible/roles/metallb/tasks/main.yml
+# Hito 2 — MetalLB v0.14.3
+# Solución al problema: AdGuard en <pending> porque k3s --disable servicelb
+# no tiene controlador Klipper para bare-metal (incidencia documentada en TFG)
+
+- name: "Desplegar MetalLB v0.14.3"
+  command: >
+    k3s kubectl apply -f
+    https://raw.githubusercontent.com/metallb/metallb/v0.14.3/config/manifests/metallb-native.yaml
+
+- name: "Esperar a que los pods de MetalLB estén listos"
+  command: >
+    k3s kubectl wait --namespace metallb-system
+    --for=condition=ready pod
+    --selector=app=metallb
+    --timeout=120s
+
+- name: "Copiar configuración del pool de IPs"
+  template:
+    src: metallb-pool.yaml.j2
+    dest: /tmp/metallb-pool.yaml
+
+- name: "Aplicar pool de IPs y L2Advertisement"
+  command: k3s kubectl apply -f /tmp/metallb-pool.yaml
+
+- name: "Verificar pool de MetalLB"
+  command: k3s kubectl get ipaddresspool -n metallb-system
+  register: metallb_pool
+
+- name: "Mostrar pool de IPs"
+  debug:
+    var: metallb_pool.stdout_lines
