@@ -82,7 +82,7 @@ ecocloud-edge/
 
 ```bash
 # 1. Clona el repositorio
-git clone https://github.com/jjvvrrmr/ecocloud-edge.git
+git clone https://github.com/jjvvrrmr/EcoCloudEdge.git
 cd ecocloud-edge
 
 # 2. Configura el inventario
