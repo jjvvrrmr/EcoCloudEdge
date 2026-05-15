@@ -38,17 +38,27 @@
       changed_when: false
 
     - name: Instalar los manifiestos base de ArgoCD
-      shell: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      shell: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --server-side --force-conflicts
       changed_when: false
 
     - name: Esperar a que los pods de ArgoCD estén operativos
       shell: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
       changed_when: false
       
+    - name: Copiar manifiesto de servicio ArgoCD al maestro
+      copy:
+       src: "{{ playbook_dir }}/../manifests/00-argocd/argocd-service.yaml"
+       dest: "/tmp/argocd-service.yaml"
+
     - name: Aplicar servicio LoadBalancer para ArgoCD
-      shell: kubectl apply -f {{ playbook_dir }}/../manifests/00-argocd/argocd-service.yaml
+      shell: kubectl apply -f /tmp/argocd-service.yaml
       changed_when: false
 
+    - name: Copiar manifiesto App of Apps al maestro
+      copy:
+        src: "{{ playbook_dir }}/../manifests/00-argocd/apps.yaml"
+        dest: "/tmp/apps.yaml"
+
     - name: Desplegar el patrón 'App of Apps' (Sincronización GitOps)
-      shell: kubectl apply -f {{ playbook_dir }}/../manifests/00-argocd/apps.yaml
+      shell: kubectl apply -f /tmp/apps.yaml
       changed_when: false

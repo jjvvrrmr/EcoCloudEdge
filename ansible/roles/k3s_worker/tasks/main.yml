@@ -11,8 +11,8 @@
 - name: "Unir el Worker al clúster"
   shell: |
     curl -sfL https://get.k3s.io | \
-      K3S_URL=https://{{ hostvars[groups['control_plane'][0]]['ansible_host'] }}:6443 \
-      K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['k3s_node_token'] }}" \
+      K3S_URL=https://{{ hostvars[groups['master'][0]]['ansible_host'] }}:6443 \
+      K3S_TOKEN="{{ hostvars[groups['master'][0]]['k3s_node_token'] }}" \
       sh -
   when: not k3s_agent_binary.stat.exists
 
