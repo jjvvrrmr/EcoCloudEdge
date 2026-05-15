@@ -3,7 +3,7 @@
 > Plataforma cloud privada y sostenible sobre clúster de Raspberry Pi 4B con k3s  
 > TFG — CFGS Administración de Sistemas Informáticos en Red (ASIR) · Madrid 2025-2026
 
-[![Validate](https://github.com/TU_USUARIO/ecocloud-edge/actions/workflows/validate.yml/badge.svg)](https://github.com/TU_USUARIO/ecocloud-edge/actions/workflows/validate.yml)
+[![Validate](https://github.com/jjvvrrmr/ecocloud-edge/actions/workflows/validate.yml/badge.svg)](https://github.com/jjvvrrmr/ecocloud-edge/actions/workflows/validate.yml)
 
 ---
 
