@@ -1,64 +1,34 @@
 ---
-# 1. Aprovisionamiento Base (Todos los nodos)
-- name: Preparar configuración base del sistema operativo
+# HITO 1 — Preparación base (todos los nodos)
+- name: Preparar SO base
   hosts: all
   become: yes
   roles:
     - base
 
-# 2. Despliegue del Plano de Control de Kubernetes
-- name: Desplegar nodo maestro de k3s
+# HITO 1 — Control Plane
+- name: Desplegar k3s master
   hosts: master
   become: yes
   roles:
     - k3s_master
 
-# 3. Unión de los Nodos Trabajadores
-- name: Desplegar nodos workers de k3s
+# HITO 1 — Workers
+- name: Unir workers al clúster
   hosts: workers
   become: yes
   roles:
     - k3s_worker
 
-# 4. Bootstrap de Controladores y GitOps (Solo en el Maestro)
-- name: Instalar controladores base y ArgoCD
+# HITOS 2-6 — Todo desde el master
+- name: Desplegar infraestructura completa
   hosts: master
   become: yes
-  tasks:
-    - name: Desplegar Sealed Secrets Controller
-      shell: kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.26.2/controller.yaml
-      changed_when: false
-
-    - name: Esperar a que Sealed Secrets Controller esté operativo
-      shell: kubectl wait --for=condition=ready pod -l name=sealed-secrets-controller -n kube-system --timeout=120s
-      changed_when: false
-
-    - name: Crear namespace para ArgoCD de forma idempotente
-      shell: kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
-      changed_when: false
-
-    - name: Instalar los manifiestos base de ArgoCD
-      shell: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --server-side --force-conflicts
-      changed_when: false
-
-    - name: Esperar a que los pods de ArgoCD estén operativos
-      shell: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
-      changed_when: false
-      
-    - name: Copiar manifiesto de servicio ArgoCD al maestro
-      copy:
-       src: "{{ playbook_dir }}/../manifests/00-argocd/argocd-service.yaml"
-       dest: "/tmp/argocd-service.yaml"
-
-    - name: Aplicar servicio LoadBalancer para ArgoCD
-      shell: kubectl apply -f /tmp/argocd-service.yaml
-      changed_when: false
-
-    - name: Copiar manifiesto App of Apps al maestro
-      copy:
-        src: "{{ playbook_dir }}/../manifests/00-argocd/apps.yaml"
-        dest: "/tmp/apps.yaml"
-
-    - name: Desplegar el patrón 'App of Apps' (Sincronización GitOps)
-      shell: kubectl apply -f /tmp/apps.yaml
-      changed_when: false
+  roles:
+    - longhorn
+    - traefik
+    - metallb
+    - lldap
+    - nextcloud
+    - ollama
+    - monitoring

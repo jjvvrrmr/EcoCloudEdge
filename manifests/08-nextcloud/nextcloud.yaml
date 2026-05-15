@@ -1,10 +1,76 @@
----
 # manifests/08-nextcloud/nextcloud.yaml
+#
+# Nextcloud — Almacenamiento colaborativo con autenticación LLDAP.
+#
+# CORRECCIÓN APLICADA respecto al borrador del TFG:
+#   El borrador montaba el mismo PVC (nc-data) en /config y en /data
+#   dentro del mismo pod. Esto es un error lógico: la imagen de
+#   LinuxServer usa /config para los ficheros de configuración de la
+#   aplicación (nginx, php, certificados) y /data para los archivos
+#   subidos por los usuarios. Compartir el mismo volumen mezcla ambos
+#   árboles de directorios y puede causar corrupción al reiniciar el pod.
+#   Se usan dos PVCs separados: nextcloud-config (2Gi) y nextcloud-data (5Gi).
+#
+# REQUISITO PREVIO:
+#   MariaDB debe estar en estado Running y la base de datos creada antes de
+#   que Nextcloud arranque. Aplicar primero manifests/07-mariadb/.
+#
+# Variables reemplazables con envsubst:
+#   NEXTCLOUD_DOMAIN   — nombre de host (defecto: nubes.ecocloud.local)
+#
+# Uso con envsubst:
+#   export NEXTCLOUD_DOMAIN="nubes.ecocloud.local"
+#   envsubst < manifests/08-nextcloud/nextcloud.yaml | sudo k3s kubectl apply -f -
+#
+# Configuración inicial tras el despliegue (primera vez, desde el navegador):
+#   1. Navega a http://nubes.ecocloud.local
+#   2. Rellena los campos:
+#      - Cuenta administrador:  admin / <tu contraseña>
+#      - Motor de BD:           MySQL/MariaDB
+#      - Usuario BD:            nextcloud_user  (valor de MYSQL_USER)
+#      - Contraseña BD:         <valor de MYSQL_PASSWORD>
+#      - Nombre BD:             nextcloud       (valor de MYSQL_DATABASE)
+#      - Host BD:               mariadb-svc:3306
+#   3. Haz clic en "Instalar"
+#
+# Integración LLDAP (tras la instalación):
+#   - Aplicaciones → buscar "LDAP user and group backend" → Activar
+#   - Configuraciones de administración → Integración LDAP/AD:
+#     Host:       lldap-svc
+#     Puerto:     3890
+#     User DN:    uid=admin,ou=people,dc=ecocloud,dc=local
+#     Contraseña: <valor de LLDAP_LDAP_USER_PASS>
+#     Base DN:    dc=ecocloud,dc=local
+#
+# Verificar:
+#   sudo k3s kubectl get pods -l app=nextcloud
+#   sudo k3s kubectl get ingress nextcloud-ingress
+#   curl -I -H "Host: nubes.ecocloud.local" http://192.168.1.81
+# ---------------------------------------------------------------------------
+
+# ── PVC para configuración de la aplicación ─────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-config
+  namespace: default
+  labels:
+    app: nextcloud
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+# ── PVC para datos de usuario ────────────────────────────────────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: nextcloud-data
   namespace: default
+  labels:
+    app: nextcloud
 spec:
   accessModes:
     - ReadWriteOnce
@@ -12,6 +78,7 @@ spec:
     requests:
       storage: 5Gi
 ---
+# ── Deployment ──────────────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,7 +89,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: Recreate              # Necesario con volúmenes RWO de Longhorn
   selector:
     matchLabels:
       app: nextcloud
@@ -33,22 +100,55 @@ spec:
     spec:
       containers:
         - name: nextcloud
-          image: linuxserver/nextcloud:28.0.2
+          image: lscr.io/linuxserver/nextcloud:30.0.5
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Madrid"
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              memory: "256Mi"
+              cpu: "100m"
             limits:
-              memory: "1.5Gi"
-              cpu: "1500m"
-          envFrom:
-            - secretRef:
-                name: nextcloud-secret
+              memory: "768Mi"
+              cpu: "750m"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 80
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - name: nc-config
+              mountPath: /config       # Configuración de nginx/php/app
+            - name: nc-data
+              mountPath: /data         # Archivos subidos por los usuarios
       volumes:
+        - name: nc-config
+          persistentVolumeClaim:
+            claimName: nextcloud-config
         - name: nc-data
           persistentVolumeClaim:
             claimName: nextcloud-data
 ---
+# ── Service ClusterIP ────────────────────────────────────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
@@ -60,20 +160,24 @@ spec:
   selector:
     app: nextcloud
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 80
+      protocol: TCP
 ---
+# ── Ingress — Traefik enruta nubes.ecocloud.local → nextcloud-svc ───────────
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: nextcloud-ingress
-  namespace: nextcloud
+  namespace: default
+  labels:
+    app: nextcloud
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-    - host: nextcloud.ecocloud.local
+    - host: "${NEXTCLOUD_DOMAIN:-nubes.ecocloud.local}"
       http:
         paths:
           - path: /
@@ -83,7 +187,3 @@ spec:
                 name: nextcloud-svc
                 port:
                   number: 80
-  tls:
-    - hosts:
-        - nextcloud.ecocloud.local
-      secretName: nextcloud-tls-cert

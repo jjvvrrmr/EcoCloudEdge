@@ -1,0 +1,21 @@
+# manifests/03-traefik/traefik-helmchart.yaml
+#
+# Despliega Traefik como Ingress Controller y proxy inverso
+# usando el controlador HelmChart nativo de k3s.
+#
+# Aplicar:
+#   sudo k3s kubectl apply -f manifests/03-traefik/traefik-helmchart.yaml
+#
+# Verificar:
+#   sudo k3s kubectl get pods -n kube-system -l app.kubernetes.io/name=traefik
+#   sudo k3s kubectl get svc -n kube-system traefik
+# ---------------------------------------------------------------------------
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  chart: traefik
+  repo: https://helm.traefik.io/traefik
+  targetNamespace: kube-system

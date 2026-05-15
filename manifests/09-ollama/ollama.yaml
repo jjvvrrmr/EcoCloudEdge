@@ -1,12 +1,46 @@
----
 # manifests/09-ollama/ollama.yaml
-# Límite de 2Gi de RAM: protege el nodo de OOM Kill con modelos grandes
-# Solo usar modelos cuantizados GGUF sub-700MB en Raspberry Pi 4B (4GB RAM)
+#
+# Ollama — Motor de inferencia de modelos de lenguaje on-premise.
+#
+# RESTRICCIÓN DE HARDWARE (documentada en TFG sección 7.3.2):
+#   Cada nodo Raspberry Pi 4B dispone de 4 GB de RAM. El sistema operativo
+#   e infraestructura consumen ~1.5 GB, dejando ~2.5 GB disponibles para
+#   el pod. Un modelo de 7B parámetros en FP16 necesita ~14 GB: el kernel
+#   lo mataría instantáneamente (OOMKiller). Por ello se limita el pod a 2Gi
+#   y se usan modelos cuantizados GGUF de menos de 700 MB:
+#     - tinyllama  (~670 MB): resumen y clasificación de documentos.
+#     - qwen2:0.5b (~400 MB): multilingüe, respuestas cortas.
+#
+# DESCARGA DEL MODELO (paso manual tras el despliegue):
+#   El modelo NO se descarga automáticamente con este manifiesto para evitar
+#   timeouts en el init del pod. Hay que descargarlo una vez el pod esté Running:
+#
+#   sudo k3s kubectl exec deploy/ollama -- ollama pull tinyllama
+#
+#   La descarga es de ~650 MB. Con red de 100 Mbps puede tardar varios minutos.
+#   El modelo queda almacenado en el PVC (ollama-data) y persiste entre reinicios.
+#
+# Aplicar:
+#   sudo k3s kubectl apply -f manifests/09-ollama/ollama.yaml
+#
+# Verificar:
+#   sudo k3s kubectl get pods -l app=ollama
+#   # Una vez Running, probar la API:
+#   sudo k3s kubectl exec deploy/ollama -- ollama run tinyllama "Responde solo OK"
+#   # O desde dentro del clúster:
+#   sudo k3s kubectl run curl-test --image=curlimages/curl:latest --rm -i --tty -- \
+#     curl -s http://ollama-svc:11434/api/generate \
+#     -d '{"model":"tinyllama","prompt":"Di solo OK","stream":false}'
+# ---------------------------------------------------------------------------
+
+# ── Almacenamiento persistente para modelos ──────────────────────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: ollama-data
   namespace: default
+  labels:
+    app: ollama
 spec:
   accessModes:
     - ReadWriteOnce
@@ -14,6 +48,7 @@ spec:
     requests:
       storage: 5Gi
 ---
+# ── Deployment ──────────────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -24,7 +59,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: Recreate              # Necesario con volúmenes RWO de Longhorn
   selector:
     matchLabels:
       app: ollama
@@ -35,12 +70,32 @@ spec:
     spec:
       containers:
         - name: ollama
-          image: ollama/ollama:latest
-          resources:
-            limits:
-              memory: "2Gi"
+          image: ollama/ollama:0.5.1
           ports:
-            - containerPort: 11434
+            - name: api
+              containerPort: 11434
+              protocol: TCP
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+            limits:
+              memory: "2Gi"     # Límite explícito: protege el nodo de OOM Kill
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
           volumeMounts:
             - name: data
               mountPath: /root/.ollama
@@ -49,6 +104,7 @@ spec:
           persistentVolumeClaim:
             claimName: ollama-data
 ---
+# ── Service ClusterIP ────────────────────────────────────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
@@ -60,5 +116,7 @@ spec:
   selector:
     app: ollama
   ports:
-    - port: 11434
+    - name: api
+      port: 11434
       targetPort: 11434
+      protocol: TCP

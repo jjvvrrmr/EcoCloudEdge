@@ -1,39 +1,87 @@
-import os
-import httpx
-from fastapi import FastAPI, Request, HTTPException
-import uvicorn
+import urllib.request
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-app = FastAPI()
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama.ollama.svc.cluster.local:11434/api/generate")
-MODEL = os.getenv("MODEL", "tinyllama")
+OLLAMA_URL = "http://ollama-svc:11434/api/generate"
+OLLAMA_TIMEOUT = 120
 
-@app.post("/webhook")
-async def handle_webhook(request: Request):
-    try:
-        data = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON format")
-    
-    prompt = data.get("text", "")
-    if not prompt:
-        raise HTTPException(status_code=400, detail="Missing text parameter")
 
-    payload = {
-        "model": MODEL,
-        "prompt": f"Resume el siguiente texto legal: {prompt}",
-        "stream": False
-    }
+class WebhookHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        print(f"[middleware] {format % args}")
 
-    # Tiempo de espera elevado para inferencia en CPU (5 minutos)
-    async with httpx.AsyncClient(timeout=300.0) as client:
+    def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_POST(self):
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length == 0:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(
+                json.dumps({"error": "No body"}).encode("utf-8")
+            )
+            return
+
+        post_data = self.rfile.read(content_length)
+
         try:
-            response = await client.post(OLLAMA_URL, json=payload)
-            response.raise_for_status()
-            # Se fuerza el decodificado UTF-8 para evitar errores con tildes y eñes
-            result = response.json()
-            return {"summary": result.get("response", "")}
-        except httpx.RequestError as e:
-            raise HTTPException(status_code=500, detail=f"Ollama connection error: {str(e)}")
+            data = json.loads(post_data)
+            prompt = data.get("prompt", "Resume este texto brevemente.")
+
+            ollama_payload = {
+                "model": "tinyllama",
+                "prompt": prompt,
+                "stream": False,
+            }
+
+            req = urllib.request.Request(
+                OLLAMA_URL,
+                data=json.dumps(ollama_payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+
+            with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT) as response:
+                result = json.loads(response.read().decode("utf-8"))
+
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "status": "success",
+                        "respuesta": result.get("response", ""),
+                    }
+                ).encode("utf-8")
+            )
+
+        except json.JSONDecodeError as e:
+            self.send_response(400)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(
+                json.dumps({"error": f"JSON inválido: {str(e)}"}).encode("utf-8")
+            )
+
+        except Exception as e:
+            print(f"[middleware] ERROR: {e}")
+            self.send_response(500)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(
+                json.dumps({"error": str(e)}).encode("utf-8")
+            )
+
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    server = HTTPServer(("0.0.0.0", 5000), WebhookHandler)
+    print("[middleware] Activo en puerto 5000...")
+    server.serve_forever()

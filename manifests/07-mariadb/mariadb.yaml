@@ -1,12 +1,37 @@
----
 # manifests/07-mariadb/mariadb.yaml
-# Usar con envsubst para sustituir variables:
-# envsubst < mariadb.yaml | kubectl apply -f -
+#
+# MariaDB 10.11 — Base de datos relacional para Nextcloud.
+#
+# Se expone únicamente como servicio ClusterIP interno (mariadb-svc:3306)
+# para que solo Nextcloud pueda acceder. No hay LoadBalancer ni Ingress
+# porque la base de datos no debe ser accesible desde fuera del clúster.
+#
+# Variables reemplazables con envsubst:
+#   MYSQL_ROOT_PASSWORD  — contraseña del usuario root de MariaDB
+#   MYSQL_DATABASE       — nombre de la base de datos (defecto: nextcloud)
+#   MYSQL_USER           — usuario de la BD para Nextcloud (defecto: nextcloud_user)
+#   MYSQL_PASSWORD       — contraseña del usuario de Nextcloud para la BD
+#
+# Uso con envsubst:
+#   export MYSQL_ROOT_PASSWORD="mi-root-pass"
+#   export MYSQL_PASSWORD="mi-db-pass"
+#   envsubst < manifests/07-mariadb/mariadb.yaml | sudo k3s kubectl apply -f -
+#
+# Verificar:
+#   sudo k3s kubectl get pods -l app=mariadb
+#   sudo k3s kubectl get svc mariadb-svc
+#   # Comprobar que MariaDB arrancó correctamente:
+#   sudo k3s kubectl logs deploy/mariadb | tail -5
+# ---------------------------------------------------------------------------
+
+# ── Almacenamiento persistente ──────────────────────────────────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mariadb-data
   namespace: default
+  labels:
+    app: mariadb
 spec:
   accessModes:
     - ReadWriteOnce
@@ -14,6 +39,7 @@ spec:
     requests:
       storage: 5Gi
 ---
+# ── Deployment ──────────────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -24,7 +50,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: Recreate              # Necesario con volúmenes RWO de Longhorn
   selector:
     matchLabels:
       app: mariadb
@@ -35,22 +61,54 @@ spec:
     spec:
       containers:
         - name: mariadb
-          image: mariadb:10.11.7
+          image: mariadb:10.11
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "${MYSQL_ROOT_PASSWORD}"
+            - name: MYSQL_DATABASE
+              value: "${MYSQL_DATABASE:-nextcloud}"
+            - name: MYSQL_USER
+              value: "${MYSQL_USER:-nextcloud_user}"
+            - name: MYSQL_PASSWORD
+              value: "${MYSQL_PASSWORD}"
+          ports:
+            - name: mysql
+              containerPort: 3306
+              protocol: TCP
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              memory: "256Mi"
+              cpu: "100m"
             limits:
-              memory: "1Gi"
-              cpu: "1000m"
-          envFrom:
-            - secretRef:
-                name: mariadb-secret
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "mysqladmin ping -u root -p${MYSQL_ROOT_PASSWORD} --silent"
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "mysqladmin ping -u root -p${MYSQL_ROOT_PASSWORD} --silent"
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/mysql
       volumes:
         - name: db-data
           persistentVolumeClaim:
             claimName: mariadb-data
 ---
+# ── Service ClusterIP (solo accesible dentro del clúster) ───────────────────
 apiVersion: v1
 kind: Service
 metadata:
@@ -62,5 +120,7 @@ spec:
   selector:
     app: mariadb
   ports:
-    - port: 3306
+    - name: mysql
+      port: 3306
       targetPort: 3306
+      protocol: TCP

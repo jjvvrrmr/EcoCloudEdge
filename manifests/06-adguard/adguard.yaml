@@ -1,11 +1,35 @@
----
 # manifests/06-adguard/adguard.yaml
-# Labels añadidos en metadata del Service (incidencia TFG sección 7.2.2)
+#
+# AdGuard Home — Servidor DNS con bloqueo de rastreadores y phishing.
+#
+# Se despliega como servicio de tipo LoadBalancer para que MetalLB le asigne
+# una IP del pool (192.168.1.80-90) accesible desde toda la red local.
+# Los dispositivos de la red deben configurarse para usar esa IP como DNS
+# primario para beneficiarse del bloqueo y la resolución de dominios .local.
+#
+# REQUISITO PREVIO: MetalLB debe estar operativo y con el pool configurado
+# (manifests/04-metallb/) antes de aplicar este fichero. Sin MetalLB, el
+# servicio quedará indefinidamente en EXTERNAL-IP: <pending>.
+#
+# Aplicar:
+#   sudo k3s kubectl apply -f manifests/06-adguard/adguard.yaml
+#
+# Verificar:
+#   sudo k3s kubectl get pods -l app=adguard
+#   sudo k3s kubectl get svc adguard-svc
+#   # La columna EXTERNAL-IP debe mostrar una IP del rango 192.168.1.80-90
+#   # Panel de configuración: http://<EXTERNAL-IP>:3000
+#   # Panel principal:        http://<EXTERNAL-IP>:80
+# ---------------------------------------------------------------------------
+
+# ── PVC para datos de trabajo (logs, caché, estadísticas) ───────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: adguard-work
   namespace: default
+  labels:
+    app: adguard
 spec:
   accessModes:
     - ReadWriteOnce
@@ -13,11 +37,14 @@ spec:
     requests:
       storage: 2Gi
 ---
+# ── PVC para configuración persistente ──────────────────────────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: adguard-conf
   namespace: default
+  labels:
+    app: adguard
 spec:
   accessModes:
     - ReadWriteOnce
@@ -25,6 +52,7 @@ spec:
     requests:
       storage: 1Gi
 ---
+# ── Deployment ──────────────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,7 +63,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: Recreate              # Evita interbloqueo RWO igual que en LLDAP
   selector:
     matchLabels:
       app: adguard
@@ -46,14 +74,39 @@ spec:
     spec:
       containers:
         - name: adguard
-          image: adguard/adguardhome:latest
+          image: adguard/adguardhome:v0.107.54
           ports:
-            - containerPort: 53
+            - name: dns-udp
+              containerPort: 53
               protocol: UDP
-            - containerPort: 53
+            - name: dns-tcp
+              containerPort: 53
               protocol: TCP
-            - containerPort: 3000
-            - containerPort: 80
+            - name: web-setup
+              containerPort: 3000
+              protocol: TCP
+            - name: web
+              containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 15
           volumeMounts:
             - name: work
               mountPath: /opt/adguardhome/work
@@ -67,24 +120,32 @@ spec:
           persistentVolumeClaim:
             claimName: adguard-conf
 ---
+# ── Service LoadBalancer ─────────────────────────────────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
   name: adguard-svc
-  namespace: adguard
-  annotations:
-    metallb.universe.tf/loadBalancerIPs: 192.168.1.80
+  namespace: default
+  labels:
+    app: adguard                # Label en el Service (incidencia 7.2.2 del TFG)
 spec:
+  type: LoadBalancer
   selector:
     app: adguard
-  type: LoadBalancer
   ports:
-    - protocol: UDP
+    - name: dns-udp
       port: 53
       targetPort: 53
-    - protocol: TCP
+      protocol: UDP
+    - name: dns-tcp
       port: 53
       targetPort: 53
-    - protocol: TCP
-      port: 80
+      protocol: TCP
+    - name: web-setup
+      port: 3000
       targetPort: 3000
+      protocol: TCP
+    - name: web
+      port: 80
+      targetPort: 80
+      protocol: TCP

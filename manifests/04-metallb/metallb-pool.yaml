@@ -1,7 +1,28 @@
----
 # manifests/04-metallb/metallb-pool.yaml
-# Ejecutar DESPUÉS de que los pods de MetalLB estén Ready
-# Rango: 192.168.1.80-90 (libre en la red del laboratorio)
+#
+# Pool de IPs y anuncio L2 para MetalLB v0.14.3.
+#
+# REQUISITO PREVIO: MetalLB debe estar instalado y sus pods en Running antes
+# de aplicar este fichero. El manifiesto de instalación se descarga en tiempo
+# real porque supera el límite de tamaño recomendado para el repo:
+#
+#   sudo k3s kubectl apply -f \
+#     https://raw.githubusercontent.com/metallb/metallb/v0.14.3/config/manifests/metallb-native.yaml
+#
+#   sudo k3s kubectl wait --namespace metallb-system \
+#     --for=condition=ready pod --selector=app=metallb --timeout=120s
+#
+# Una vez listos los pods, aplicar este fichero:
+#   sudo k3s kubectl apply -f manifests/04-metallb/metallb-pool.yaml
+#
+# Variables reemplazables con envsubst:
+#   METALLB_POOL_START  (defecto: 192.168.1.80)
+#   METALLB_POOL_END    (defecto: 192.168.1.90)
+#
+# Verificar:
+#   sudo k3s kubectl get ipaddresspool -n metallb-system
+#   sudo k3s kubectl get l2advertisement -n metallb-system
+# ---------------------------------------------------------------------------
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -9,10 +30,13 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-    - 192.168.1.80-192.168.1.90
+    - ${METALLB_POOL_START:-192.168.1.80}-${METALLB_POOL_END:-192.168.1.90}
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
   name: ecocloud-l2-adv
   namespace: metallb-system
+spec:
+  ipAddressPools:
+    - ecocloud-ip-pool

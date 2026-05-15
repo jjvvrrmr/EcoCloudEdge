@@ -1,7 +1,23 @@
----
 # manifests/02-longhorn/longhorn-configmap.yaml
-# APLICAR ANTES que longhorn.yaml
-# Limita réplicas a 2 para no saturar la red de 100 Mbps (incidencia TFG sección 7.3.1)
+#
+# ConfigMap que limita Longhorn a 2 réplicas por volumen.
+#
+# MOTIVO (documentado en TFG sección 7.3.1):
+#   La configuración por defecto de Longhorn establece 3 réplicas. Con una
+#   red de 100 Mbps, el tráfico de sincronización entre réplicas satura el
+#   ancho de banda y degrada el rendimiento de todos los servicios del clúster.
+#   Limitando a 2 réplicas se mantiene alta disponibilidad (si cae un nodo,
+#   la réplica restante permite continuar operando) sin saturar la red.
+#
+# IMPORTANTE: Este ConfigMap debe aplicarse ANTES del manifiesto principal
+# de Longhorn. Si se aplica después, Longhorn ya habrá leído su configuración
+# por defecto y será necesario modificarlo manualmente desde la UI de Longhorn.
+#
+# Orden de aplicación correcto:
+#   1. sudo k3s kubectl create namespace longhorn-system
+#   2. sudo k3s kubectl apply -f manifests/02-longhorn/longhorn-configmap.yaml
+#   3. sudo k3s kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.7.2/deploy/longhorn.yaml
+# ---------------------------------------------------------------------------
 apiVersion: v1
 kind: ConfigMap
 metadata:

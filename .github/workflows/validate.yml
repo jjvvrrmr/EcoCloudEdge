@@ -85,7 +85,7 @@ jobs:
       - name: "Ejecutar ansible-lint en el playbook maestro"
         run: |
           cd ansible
-          ansible-lint site.yml --exclude roles/
+          ansible-lint site.yml 
 
   # ──────────────────────────────────────────────────────────
   # JOB 4: Python lint (middleware)
@@ -101,7 +101,13 @@ jobs:
         run: pip install flake8
 
       - name: "Lint del middleware Python"
-        run: flake8 middleware/ --max-line-length=100 --ignore=E501
+        run: |
+          if [ -d "middleware" ]; then
+            flake8 middleware/ --max-line-length=100
+          else
+            echo "ERROR: middleware/ no existe"
+            exit 1
+          fi
 
   # ──────────────────────────────────────────────────────────
   # JOB 5: Detección de secretos accidentales

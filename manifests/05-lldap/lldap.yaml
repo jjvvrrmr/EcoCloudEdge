@@ -1,24 +1,54 @@
----
 # manifests/05-lldap/lldap.yaml
-# VERSIÓN FINAL con las 3 correcciones documentadas en el TFG (sección 7.1)
 #
-# Corrección 1 — securityContext.fsGroup:1000
-#   Longhorn monta el volumen como root, LLDAP ejecuta como UID 1000 → CrashLoopBackOff
+# LLDAP — Directorio LDAP centralizado para EcoCloud Edge.
 #
-# Corrección 2 — LLDAP_LDAP_USER_PASS
-#   Obligatorio desde v0.6.x, no documentado en la guía oficial → Panic en Rust
+# Este manifiesto incorpora las tres correcciones documentadas en el TFG
+# (sección 7.1) que resuelven los errores encontrados durante el despliegue real:
 #
-# Corrección 3 — strategy.type: Recreate
-#   RollingUpdate intentaba levantar el nuevo pod antes de liberar el volumen RWO → interbloqueo
+#   Corrección 1 — securityContext.fsGroup: 1000
+#     Longhorn monta el volumen con permisos root (UID 0). LLDAP ejecuta
+#     su proceso con UID 1000 y no puede escribir la base de datos SQLite
+#     en /data, causando CrashLoopBackOff. fsGroup fuerza al kubelet a
+#     cambiar la propiedad del grupo del volumen antes de montarlo.
 #
-# IMPORTANTE: sustituye CAMBIA_ESTO por tus valores reales antes de aplicar
-# O usa: envsubst < lldap.yaml | kubectl apply -f -
+#   Corrección 2 — LLDAP_LDAP_USER_PASS
+#     Desde LLDAP v0.6.x esta variable es obligatoria. Sin ella el proceso
+#     arranca, intenta inicializar la BD y lanza un panic en Rust:
+#     "The LDAP admin password must be initialized."
+#
+#   Corrección 3 — strategy.type: Recreate
+#     Con la estrategia por defecto (RollingUpdate), Kubernetes levanta el
+#     pod nuevo antes de destruir el antiguo. El volumen Longhorn es RWO
+#     (ReadWriteOnce), de modo que el pod antiguo mantiene el bloqueo
+#     exclusivo y el nuevo queda indefinidamente en ContainerCreating.
+#     Recreate garantiza que el pod antiguo libera el volumen antes de
+#     que el nuevo intente montarlo.
+#
+# Variables reemplazables con envsubst:
+#   LLDAP_JWT_SECRET       — cadena aleatoria larga (mínimo 32 chars)
+#   LLDAP_LDAP_USER_PASS   — contraseña del usuario admin de LLDAP
+#   LLDAP_LDAP_BASE_DN     — base DN (defecto: dc=ecocloud,dc=local)
+#
+# Uso con envsubst:
+#   export LLDAP_JWT_SECRET="mi-secreto-largo"
+#   export LLDAP_LDAP_USER_PASS="mi-contraseña"
+#   envsubst < manifests/05-lldap/lldap.yaml | sudo k3s kubectl apply -f -
+#
+# Verificar:
+#   sudo k3s kubectl get pods -l app=lldap
+#   sudo k3s kubectl get svc lldap-svc
+#   # Panel web en: http://<IP-node1>:17170  (port-forward)
+#   sudo k3s kubectl port-forward svc/lldap-svc 17170:17170
+# ---------------------------------------------------------------------------
 
+# ── Almacenamiento persistente ──────────────────────────────────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: lldap-data
   namespace: default
+  labels:
+    app: lldap
 spec:
   accessModes:
     - ReadWriteOnce
@@ -26,6 +56,7 @@ spec:
     requests:
       storage: 1Gi
 ---
+# ── Deployment ──────────────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -36,7 +67,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: Recreate              # Corrección 3: evita interbloqueo RWO
   selector:
     matchLabels:
       app: lldap
@@ -46,20 +77,41 @@ spec:
         app: lldap
     spec:
       securityContext:
-        fsGroup: 1000
+        fsGroup: 1000           # Corrección 1: permisos de escritura para UID 1000
       containers:
         - name: lldap
-          image: lldap/lldap:latest
+          image: lldap/lldap:v0.6.1
           ports:
-            - containerPort: 3890
-            - containerPort: 17170
+            - name: ldap
+              containerPort: 3890
+              protocol: TCP
+            - name: http
+              containerPort: 17170
+              protocol: TCP
           env:
             - name: LLDAP_JWT_SECRET
               value: "${LLDAP_JWT_SECRET}"
             - name: LLDAP_LDAP_BASE_DN
-              value: "dc=ecocloud,dc=local"
+              value: "${LLDAP_LDAP_BASE_DN:-dc=ecocloud,dc=local}"
             - name: LLDAP_LDAP_USER_PASS
-              value: "${LLDAP_LDAP_USER_PASS}"
+              value: "${LLDAP_LDAP_USER_PASS}"    # Corrección 2: obligatorio en v0.6.x
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            tcpSocket:
+              port: 3890
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            tcpSocket:
+              port: 3890
+            initialDelaySeconds: 5
+            periodSeconds: 10
           volumeMounts:
             - name: data
               mountPath: /data
@@ -68,13 +120,17 @@ spec:
           persistentVolumeClaim:
             claimName: lldap-data
 ---
+# ── Service ─────────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: Service
 metadata:
   name: lldap-svc
   namespace: default
   labels:
-    app: lldap
+    app: lldap                  # Label en el Service (incidencia 7.2.2 del TFG:
+                                # sin este label, kubectl get svc -l app=lldap
+                                # devolvía vacío porque el filtro actúa sobre
+                                # metadata.labels del objeto Service, no del selector)
 spec:
   selector:
     app: lldap
@@ -82,6 +138,8 @@ spec:
     - name: ldap
       port: 3890
       targetPort: 3890
+      protocol: TCP
     - name: http
       port: 17170
       targetPort: 17170
+      protocol: TCP

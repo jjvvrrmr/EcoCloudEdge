@@ -1,0 +1,84 @@
+# manifests/10-monitoring/monitoring-helmchart.yaml
+#
+# Stack de monitorización: kube-prometheus-stack (Prometheus + Grafana + Node Exporter)
+#
+# Se despliega usando el controlador HelmChart nativo de k3s, que gestiona
+# el ciclo de vida del chart de Helm directamente desde el API server.
+#
+# CONFIGURACIÓN ALIGERADA para Raspberry Pi 4B (4 GB RAM):
+#   - AlertManager deshabilitado (ahorra ~100 MB de RAM).
+#   - Prometheus limitado a 500 MB de RAM con retención de 2 días
+#     (en vez de los 15 días por defecto).
+#   - Node Exporter habilitado como DaemonSet: se ejecuta en los 4 nodos
+#     automáticamente y exporta métricas de CPU, RAM, disco y red.
+#   - kube-state-metrics habilitado: expone el estado de los objetos k8s.
+#
+# ACCESO A GRAFANA:
+#   Traefik enruta monitor.ecocloud.local → grafana (puerto 80).
+#   Desde el PC cliente, añadir al fichero hosts:
+#     192.168.1.81  monitor.ecocloud.local
+#   Credenciales: admin / <valor de GRAFANA_ADMIN_PASSWORD>
+#
+# DASHBOARDS RECOMENDADOS (importar por ID en Grafana → Dashboards → Import):
+#   1860  — Node Exporter Full (CPU, RAM, disco y red por nodo)
+#   13032 — k3s Cluster (estado del clúster, pods, deployments)
+#   13200 — Longhorn (volúmenes, réplicas, uso de disco)
+#
+# Variables reemplazables con envsubst:
+#   GRAFANA_ADMIN_PASSWORD  — contraseña del usuario admin de Grafana
+#   GRAFANA_DOMAIN          — nombre de host (defecto: monitor.ecocloud.local)
+#
+# Uso con envsubst:
+#   export GRAFANA_ADMIN_PASSWORD="mi-contraseña"
+#   envsubst < manifests/10-monitoring/monitoring-helmchart.yaml | \
+#     sudo k3s kubectl apply -f -
+#
+# Verificar:
+#   sudo k3s kubectl get pods -n monitoring
+#   sudo k3s kubectl get svc -n monitoring
+#   curl -I -H "Host: monitor.ecocloud.local" http://192.168.1.81
+# ---------------------------------------------------------------------------
+
+# ── Namespace ────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+# ── HelmChart — kube-prometheus-stack ────────────────────────────────────────
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: prometheus-stack
+  namespace: kube-system
+spec:
+  chart: kube-prometheus-stack
+  repo: https://prometheus-community.github.io/helm-charts
+  targetNamespace: monitoring
+  valuesContent: |-
+    alertmanager:
+      enabled: false
+
+    grafana:
+      adminPassword: "${GRAFANA_ADMIN_PASSWORD}"
+      ingress:
+        enabled: true
+        hosts:
+          - ${GRAFANA_DOMAIN:-monitor.ecocloud.local}
+        annotations:
+          traefik.ingress.kubernetes.io/router.entrypoints: web
+
+    prometheus:
+      prometheusSpec:
+        resources:
+          requests:
+            memory: 200Mi
+          limits:
+            memory: 500Mi
+        retention: 2d
+
+    kubeStateMetrics:
+      enabled: true
+
+    nodeExporter:
+      enabled: true
