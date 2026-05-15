@@ -143,7 +143,7 @@ jobs:
   build-middleware:
     name: "Build & Push Middleware Image"
     runs-on: ubuntu-latest
-    needs: [yaml-lint, kubeconform, python-lint, secret-scan]
+    needs: [yaml-lint, kubeconform, python-lint, ansible-lint, secret-scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
