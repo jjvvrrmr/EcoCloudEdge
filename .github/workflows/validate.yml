@@ -1,4 +1,3 @@
-# .github/workflows/validate.yml
 # =====================================================================
 # EcoCloud Edge — Pipeline CI
 # Se ejecuta en cada push y en cada Pull Request
@@ -212,7 +211,7 @@ jobs:
   summary:
     name: "Pipeline Summary"
     runs-on: ubuntu-latest
-    needs: [yaml-lint, kubeconform, ansible-lint, python-lint, secret-scan, build-middleware]
+    needs: [yaml-lint, kubeconform, ansible-lint, python-lint, secret-scan, build-middleware, argocd-sync]
     if: always()
     steps:
       - name: "Mostrar resultado"
