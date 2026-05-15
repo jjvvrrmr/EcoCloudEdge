@@ -1,4 +1,3 @@
----
 # .github/workflows/validate.yml
 # =====================================================================
 # EcoCloud Edge — Pipeline CI
@@ -10,6 +9,7 @@
 #   3. Lint del playbook Ansible (ansible-lint)
 #   4. Lint del código Python del middleware (flake8)
 #   5. Escaneo de secretos hardcodeados (detect-secrets)
+#   6. Build y push de imagen Docker del middleware a GHCR
 # =====================================================================
 
 name: "Validate — EcoCloud Edge"
@@ -22,7 +22,7 @@ on:
 
 jobs:
   # ──────────────────────────────────────────────────────────
-  # JOB 1: YAML lint — todos los archivos .yaml/.yml del repo
+  # JOB 1: YAML lint
   # ──────────────────────────────────────────────────────────
   yaml-lint:
     name: "YAML Lint"
@@ -54,10 +54,11 @@ jobs:
           curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
             | tar xz -C /usr/local/bin
 
-      - name: "Validar manifiestos (ignorando templates con variables Jinja2)"
+      - name: "Validar manifiestos (ignorando templates Jinja2 y SealedSecrets)"
         run: |
           find manifests/ -name "*.yaml" \
             ! -name "*.j2" \
+            ! -name "*sealedsecret*" \
             | grep -v "template" \
             | xargs kubeconform \
               -strict \
@@ -110,21 +111,22 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para escanear todo el historial
+          fetch-depth: 0
 
       - name: "Escanear secretos con detect-secrets"
         uses: reviewdog/action-detect-secrets@v0
         with:
           reporter: github-pr-check
           fail_on_error: true
-        continue-on-error: true  # No bloquear si el action no está disponible
+        continue-on-error: true
 
-      - name: "Búsqueda simple de patrones de contraseñas hardcodeadas"
+      - name: "Búsqueda de secretos hardcodeados en texto plano"
         run: |
-          echo "Buscando patrones de secretos..."
-          # Busca contraseñas típicas del proyecto que NO deberían estar en el repo
+          echo "Buscando patrones de secretos en texto plano..."
+          # Ignora los ficheros sealedsecret.yaml porque están cifrados
           if grep -r "EcoCloudAdmin2026\|EcoCloudDB2026\|EcoCloudRoot2026\|Nextcloud_pass\|AdminEcoCloud2026" \
             --include="*.yaml" --include="*.yml" --include="*.py" --include="*.txt" \
+            --exclude="*sealedsecret*" \
             --exclude-dir=".git" .; then
             echo "ERROR: Se encontraron secretos hardcodeados en el repositorio"
             echo "Usa variables de entorno o .env (ver .env.example)"
@@ -133,7 +135,7 @@ jobs:
           echo "OK — No se encontraron secretos hardcodeados"
 
   # ──────────────────────────────────────────────────────────
-  # JOB 6: Build y push de la imagen Docker del middleware
+  # JOB 6: Build y push de imagen Docker del middleware
   # Solo se ejecuta en push a main (no en PRs)
   # ──────────────────────────────────────────────────────────
   build-middleware:
@@ -173,7 +175,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   # ──────────────────────────────────────────────────────────
-  # JOB 6: Resumen final del pipeline
+  # JOB 7: Resumen final del pipeline
   # ──────────────────────────────────────────────────────────
   summary:
     name: "Pipeline Summary"
@@ -184,8 +186,9 @@ jobs:
       - name: "Mostrar resultado"
         run: |
           echo "=== EcoCloud Edge CI Pipeline ==="
-          echo "yaml-lint:    ${{ needs.yaml-lint.result }}"
-          echo "kubeconform:  ${{ needs.kubeconform.result }}"
-          echo "ansible-lint: ${{ needs.ansible-lint.result }}"
-          echo "python-lint:  ${{ needs.python-lint.result }}"
-          echo "secret-scan:  ${{ needs.secret-scan.result }}"
+          echo "yaml-lint:        ${{ needs.yaml-lint.result }}"
+          echo "kubeconform:      ${{ needs.kubeconform.result }}"
+          echo "ansible-lint:     ${{ needs.ansible-lint.result }}"
+          echo "python-lint:      ${{ needs.python-lint.result }}"
+          echo "secret-scan:      ${{ needs.secret-scan.result }}"
+          echo "build-middleware: ${{ needs.build-middleware.result }}"
