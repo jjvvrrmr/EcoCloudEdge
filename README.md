@@ -175,23 +175,33 @@ son distintos, cámbialos aquí.
 
 **Paso 1.5 — Crear el archivo de secretos**
 
-El proyecto usa un archivo `ansible/secrets.yml` para gestionar las contraseñas.
-Este archivo está en `.gitignore` y NUNCA se sube a Git.
+El proyecto incluye una plantilla `ansible/secrets.yml.example`. Cópiala y rellena
+los valores reales. Este archivo está en `.gitignore` y NUNCA se sube a Git.
 
 ```bash
-# Crear el archivo con tus contraseñas reales
-cat > ansible/secrets.yml << 'EOF'
-lldap_jwt_secret: "pon-aqui-una-cadena-aleatoria-larga-minimo-32-caracteres"
+cp ansible/secrets.yml.example ansible/secrets.yml
+# Edita ansible/secrets.yml con tus contraseñas reales
+```
+
+El archivo tiene este aspecto una vez rellenado:
+
+```yaml
+lldap_jwt_secret: "cadena-aleatoria-larga-minimo-32-caracteres"
 lldap_ldap_user_pass: "tu-contraseña-admin-lldap"
 mysql_root_password: "tu-contraseña-root-mariadb"
 mysql_password: "tu-contraseña-nextcloud-mariadb"
 nextcloud_admin_password: "tu-contraseña-admin-nextcloud"
 grafana_admin_password: "tu-contraseña-admin-grafana"
-EOF
 ```
 
-Sustituye cada valor por contraseñas reales y seguras. El archivo usa minúsculas
-porque Ansible (Jinja2) es sensible a mayúsculas/minúsculas en los nombres de variable.
+Para generar un `lldap_jwt_secret` seguro puedes usar:
+```bash
+openssl rand -hex 32
+```
+
+Los nombres van en minúsculas. Ansible distingue entre mayúsculas y minúsculas:
+`LLDAP_JWT_SECRET` y `lldap_jwt_secret` son variables distintas y solo la segunda
+funciona con los templates del proyecto.
 
 ---
 
