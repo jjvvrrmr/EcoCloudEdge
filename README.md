@@ -5,6 +5,10 @@
 
 [![Validate](../../actions/workflows/validate.yml/badge.svg)](../../actions/workflows/validate.yml)
 [![k3s](https://img.shields.io/badge/Kubernetes-k3s-blue?logo=kubernetes)](https://k3s.io)
+[![Ansible](https://img.shields.io/badge/Automation-Ansible-red?logo=ansible)](https://www.ansible.com)
+[![Raspberry Pi](https://img.shields.io/badge/Hardware-Raspberry%20Pi%204B-C51A4A?logo=raspberrypi)](https://www.raspberrypi.com)
+[![Power](https://img.shields.io/badge/Consumo-28W_máx-green)](https://github.com/jjvvrrmr/EcoCloudEdge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
