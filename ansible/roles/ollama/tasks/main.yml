@@ -26,7 +26,7 @@
 - name: "Descargar modelo TinyLlama (650MB aprox, paciencia con la red de 100Mbps)"
   command: k3s kubectl exec deploy/ollama -- ollama pull tinyllama
   register: model_pull
-  async: 1200
+  async: 1800
   poll: 30
 
 - name: "Copiar código Python del middleware al nodo"
