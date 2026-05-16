@@ -1,4 +1,3 @@
----
 # ansible/roles/longhorn/tasks/main.yml
 # Hito 2 — Almacenamiento distribuido con límite de 2 réplicas
 # Motivo del límite: red de 100 Mbps se satura con 3 réplicas (incidencia documentada)

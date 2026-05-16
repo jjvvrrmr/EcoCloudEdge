@@ -10,6 +10,7 @@ kubeconfig.yaml
 ansible/inventory.ini
 ansible/*.retry
 *.retry
+ansible/secrets.yml
 
 # ── OS / Editor ─────────────────────────────────────────────
 .DS_Store
