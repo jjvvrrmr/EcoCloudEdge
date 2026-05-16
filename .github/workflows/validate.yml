@@ -1,6 +1,6 @@
 # =====================================================================
 # EcoCloud Edge — Pipeline CI
-# Se ejecuta en cada push y en cada Pull Request
+# Se ejecuta en cada push, Pull Request y de forma manual
 #
 # Qué hace:
 #   1. Lint de todos los YAML del repo (yamllint)
@@ -17,9 +17,10 @@ name: "Validate — EcoCloud Edge"
 
 on:
   push:
-    branches: ["main", "develop"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch: 
 
 jobs:
   # ──────────────────────────────────────────────────────────
@@ -36,9 +37,25 @@ jobs:
         run: pip install yamllint
 
       - name: "Ejecutar yamllint en manifests/ y ansible/"
-        # Se ejecuta directamente. Si creas el .yamllint.yml en la raíz,
-        # yamllint lo detectará automáticamente sin necesidad de indicarlo con -c.
-        run: yamllint manifests/ ansible/ .github/workflows/
+        run: |
+          echo "### 📝 Resultados de Yamllint" >> $GITHUB_STEP_SUMMARY
+          set +e
+          OUTPUT=$(yamllint manifests/ ansible/ .github/workflows/ 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ **Se encontraron errores de formato YAML:**" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Haz clic para ver los detalles del error</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+            exit $EXIT_CODE
+          else
+            echo "✅ Todo el YAML validado correctamente." >> $GITHUB_STEP_SUMMARY
+          fi
 
   # ──────────────────────────────────────────────────────────
   # JOB 2: Validación de manifiestos Kubernetes
@@ -57,17 +74,24 @@ jobs:
 
       - name: "Validar manifiestos (ignorando templates Jinja2 y SealedSecrets)"
         run: |
-          find manifests/ -name "*.yaml" \
-            ! -name "*.j2" \
-            ! -name "*sealedsecret*" \
-            | grep -v "template" \
-            | xargs kubeconform \
-              -strict \
-              -ignore-missing-schemas \
-              -schema-location default \
-              -schema-location \
-              'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-              -summary
+          echo "### ☸️ Resultados de Kubeconform" >> $GITHUB_STEP_SUMMARY
+          set +e
+          OUTPUT=$(find manifests/ -name "*.yaml" ! -name "*.j2" ! -name "*sealedsecret*" | grep -v "template" | xargs kubeconform -strict -ignore-missing-schemas -schema-location default -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' -summary 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ **Se encontraron errores en los manifiestos de Kubernetes:**" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Haz clic para ver los detalles</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+            exit $EXIT_CODE
+          else
+            echo "✅ Manifiestos K8s validados correctamente." >> $GITHUB_STEP_SUMMARY
+          fi
 
   # ──────────────────────────────────────────────────────────
   # JOB 3: Ansible lint
@@ -84,8 +108,25 @@ jobs:
 
       - name: "Ejecutar ansible-lint en el playbook maestro"
         run: |
+          echo "### ⚙️ Resultados de Ansible Lint" >> $GITHUB_STEP_SUMMARY
           cd ansible
-          ansible-lint site.yml 
+          set +e
+          OUTPUT=$(ansible-lint site.yml 2>&1)
+          EXIT_CODE=$?
+          set -e
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "❌ **Se encontraron problemas en los playbooks o roles:**" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Haz clic para ver los detalles del error</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+            exit $EXIT_CODE
+          else
+            echo "✅ Playbooks de Ansible validados correctamente." >> $GITHUB_STEP_SUMMARY
+          fi
 
   # ──────────────────────────────────────────────────────────
   # JOB 4: Python lint (middleware)
@@ -102,10 +143,27 @@ jobs:
 
       - name: "Lint del middleware Python"
         run: |
+          echo "### 🐍 Resultados de Flake8 (Python)" >> $GITHUB_STEP_SUMMARY
           if [ -d "middleware" ]; then
-            flake8 middleware/ --max-line-length=100
+            set +e
+            OUTPUT=$(flake8 middleware/ --max-line-length=100 2>&1)
+            EXIT_CODE=$?
+            set -e
+            
+            if [ $EXIT_CODE -ne 0 ]; then
+              echo "❌ **Se encontraron problemas en el código Python:**" >> $GITHUB_STEP_SUMMARY
+              echo "<details><summary>Haz clic para ver los detalles del error</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo '```text' >> $GITHUB_STEP_SUMMARY
+              echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "</details>" >> $GITHUB_STEP_SUMMARY
+              exit $EXIT_CODE
+            else
+              echo "✅ Código Python validado correctamente." >> $GITHUB_STEP_SUMMARY
+            fi
           else
-            echo "ERROR: middleware/ no existe"
+            echo "❌ **ERROR:** El directorio \`middleware/\` no existe." >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
@@ -131,7 +189,6 @@ jobs:
       - name: "Búsqueda de secretos hardcodeados en texto plano"
         run: |
           echo "Buscando patrones de secretos en texto plano..."
-          # Ignora los ficheros sealedsecret.yaml porque están cifrados
           if grep -r "EcoCloudAdmin2026\|EcoCloudDB2026\|EcoCloudRoot2026\|Nextcloud_pass\|AdminEcoCloud2026" \
             --include="*.yaml" --include="*.yml" --include="*.py" --include="*.txt" \
             --exclude="*sealedsecret*" \
@@ -144,7 +201,6 @@ jobs:
 
   # ──────────────────────────────────────────────────────────
   # JOB 6: Build y push de imagen Docker del middleware
-  # Solo se ejecuta en push a main (no en PRs)
   # ──────────────────────────────────────────────────────────
   build-middleware:
     name: "Build & Push Middleware Image"
@@ -193,10 +249,9 @@ jobs:
     steps:
       - name: "Mostrar resultado"
         run: |
-          echo "=== EcoCloud Edge CI Pipeline ==="
-          echo "yaml-lint:        ${{ needs.yaml-lint.result }}"
-          echo "kubeconform:      ${{ needs.kubeconform.result }}"
-          echo "ansible-lint:     ${{ needs.ansible-lint.result }}"
-          echo "python-lint:      ${{ needs.python-lint.result }}"
-          echo "secret-scan:      ${{ needs.secret-scan.result }}"
-          echo "build-middleware: ${{ needs.build-middleware.result }}"
+          echo "### 🚀 Resumen Final del Pipeline" >> $GITHUB_STEP_SUMMARY
+          echo "- **YAML Lint:** ${{ needs.yaml-lint.result == 'success' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Kubeconform:** ${{ needs.kubeconform.result == 'success' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ansible Lint:** ${{ needs.ansible-lint.result == 'success' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Python Lint:** ${{ needs.python-lint.result == 'success' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Secret Scan:** ${{ needs.secret-scan.result == 'success' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
