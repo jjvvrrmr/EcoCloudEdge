@@ -46,7 +46,7 @@ internet para los datos y por menos de 200 € de hardware.
 EcoCloudEdge/
 ├── ansible/
 │   ├── inventory.ini.example   # Copia como inventory.ini y ajusta IPs
-│   ├── secrets.yml             # Crea este archivo con tus contraseñas (ver paso 3)
+│   ├── secrets.yml.example     # Copia este archivo con tus contraseñas
 │   ├── site.yml                # Playbook maestro (6 hitos)
 │   └── roles/
 │       ├── base/               # Hito 1: SO, cgroups, iSCSI, swap
@@ -78,7 +78,6 @@ EcoCloudEdge/
 │   └── troubleshooting.md      # Incidencias reales con causa raíz y solución
 ├── .github/workflows/
 │   └── validate.yml            # CI: lint + validación + secret scan
-├── .env.example                # Variables requeridas (sin valores reales)
 ├── .gitignore
 └── README.md
 ```
