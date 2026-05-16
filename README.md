@@ -97,19 +97,42 @@ Ejecutar en los 4 nodos (conectar por SSH a cada uno):
 # Desinstalar el agente k3s de los workers (node2, node3, node4)
 /usr/local/bin/k3s-agent-uninstall.sh
 
-# Purgar directorios residuales de Longhorn y CNI (todos los nodos)
-sudo rm -rf /var/lib/longhorn
-sudo rm -rf /var/lib/cni
-sudo rm -rf /etc/cni
-sudo rm -rf /opt/cni
+# Detener procesos remanentes y remover enlaces activos
+sudo systemctl stop k3s || true
+sudo systemctl stop k3s-agent || true
+sudo killall k3s || true
 
-# Limpiar reglas de red huérfanas de iptables (todos los nodos)
+# Eliminación de directorios de datos, archivos y volúmenes persistentes
+sudo rm -rf /var/lib/longhorn/
+sudo rm -rf /var/lib/rancher/
+sudo rm -rf /var/lib/kubelet/
+sudo rm -rf /var/lib/cni/
+sudo rm -rf /etc/rancher/
+sudo rm -rf /run/k3s/
+sudo rm -rf /run/flannel/
+sudo rm -rf /var/log/pods/
+sudo rm -rf /var/log/containers/
+
+# Limpieza agresiva de reglas de red
 sudo iptables -F
-sudo iptables -t nat -F
-sudo iptables -t mangle -F
 sudo iptables -X
+sudo iptables -t nat -F
+sudo iptables -t nat -X
+sudo iptables -t mangle -F
+sudo iptables -t mangle -X
+sudo iptables -t raw -F
+sudo iptables -t raw -X
+sudo iptables -P INPUT ACCEPT
+sudo iptables -P FORWARD ACCEPT
+sudo iptables -P OUTPUT ACCEPT
 
-# Reiniciar físicamente cada nodo para refrescar el kernel
+# Eliminación de interfaces de red virtuales huérfanas
+sudo ip link delete cni0 || true
+sudo ip link delete flannel.1 || true
+sudo ip link delete kube-ipvs0 || true
+sudo ip link delete dummy0 || true
+
+# Reiniciar cada nodo para refrescar el kernel
 sudo reboot
 ```
 
