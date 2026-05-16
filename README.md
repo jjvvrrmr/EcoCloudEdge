@@ -9,7 +9,7 @@
 [![Raspberry Pi](https://img.shields.io/badge/Hardware-Raspberry%20Pi%204B-C51A4A?logo=raspberrypi)](https://www.raspberrypi.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Power](https://img.shields.io/badge/Consumo-28W_máx-green?logo=leaflet)](https://github.com/jjvvrrmr/EcoCloudEdge)
-[![Nodes](https://img.shields.io/badge/Nodes-4×_RPi_4B-blue?logo=kubernetes)](https://github.com/jjvvrrmr/EcoCloudEdge)
+[![k3s](https://img.shields.io/badge/Kubernetes-k3s-blue?logo=kubernetes)](https://k3s.io)
 
 ---
 
