@@ -12,16 +12,16 @@ Red local: 192.168.1.0/24 · 100 Mbps
 MetalLB Pool: 192.168.1.80–90
 
 ┌──────────────────────────────────────────────────────────────────────┐
-│  node1 · 192.168.1.70 · Control Plane                               │
-│  k3s API-Server · etcd · Controller · Scheduler                     │
-│  Longhorn Manager · Traefik IngressController · MetalLB Speaker     │
+│  node1 · 192.168.1.70 · Control Plane                                │
+│  k3s API-Server · etcd · Controller · Scheduler                      │
+│  Longhorn Manager · Traefik IngressController · MetalLB Speaker      │
 ├──────────────────┬──────────────────┬────────────────────────────────┤
-│  node2 · .71     │  node3 · .72     │  node4 · .73                  │
-│  k3s Agent       │  k3s Agent       │  k3s Agent                    │
-│  Longhorn Rep.   │  Longhorn Rep.   │  Longhorn Rep.                │
-│  Node Exporter   │  Node Exporter   │  Node Exporter                │
-│  MariaDB 10.11   │  Nextcloud 30    │  Ollama 0.5.1                 │
-│  LLDAP v0.6.1    │  AdGuard v0.107  │  TinyLlama 1.1B-Q4            │
+│  node2 · .71     │  node3 · .72     │  node4 · .73                   │
+│  k3s Agent       │  k3s Agent       │  k3s Agent                     │
+│  Longhorn Rep.   │  Longhorn Rep.   │  Longhorn Rep.                 │
+│  Node Exporter   │  Node Exporter   │  Node Exporter                 │
+│  MariaDB 10.11   │  Nextcloud 30    │  Ollama 0.5.1                  │
+│  LLDAP v0.6.1    │  AdGuard v0.107  │  TinyLlama 1.1B-Q4             │
 │                  │                  │  Middleware Python 3.10        │
 │                  │                  │  Prometheus · Grafana          │
 └──────────────────┴──────────────────┴────────────────────────────────┘
