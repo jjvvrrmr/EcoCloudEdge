@@ -45,7 +45,7 @@
 # Verificar:
 #   sudo k3s kubectl get pods -l app=nextcloud
 #   sudo k3s kubectl get ingress nextcloud-ingress
-#   curl -I -H "Host: nubes.ecocloud.local" http://192.168.1.81
+#   curl -I -H "Host: nubes.ecocloud.local" http://192.168.1.80
 # ---------------------------------------------------------------------------
 
 # ── PVC para configuración de la aplicación ─────────────────────────────────
