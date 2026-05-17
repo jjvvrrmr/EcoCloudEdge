@@ -110,8 +110,8 @@ imagen personalizada ARM64 con la red de 100 Mbps del clúster.
 │                  Longhorn StorageClass                  │
 │               replicaCount: 2  (ver §5.1)               │
 │                                                         │
-│  Volumen ◄──── réplica principal ────► réplica secundaria │
-│                (scheduler Longhorn elige los nodos)     │
+│Volumen ◄──── réplica principal ────► réplica secundaria │
+│           (scheduler Longhorn elige los nodos)          │
 └─────────────────────────────────────────────────────────┘
 ```
 
