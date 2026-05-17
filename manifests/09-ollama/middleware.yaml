@@ -141,6 +141,8 @@ metadata:
     app: middleware
 spec:
   replicas: 1
+  strategy:
+    type: Recreate              # Consistencia con el resto de Deployments
   selector:
     matchLabels:
       app: middleware
@@ -200,3 +202,4 @@ spec:
       port: 5000
       targetPort: 5000
       protocol: TCP
+      
