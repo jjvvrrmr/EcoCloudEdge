@@ -126,7 +126,7 @@ con red de 100 Mbps. Imagen base: `python:3.10-alpine` (~50 MB vs ~900 MB de `py
 ```
 
 Todos los PersistentVolumeClaims usan `accessMode: ReadWriteOnce`. Esto impone la restricción
-de estrategia de despliegue `Recreate` (ver §5.2).
+de estrategia de despliegue `Recreate` (ver 5.2).
 
 ---
 
