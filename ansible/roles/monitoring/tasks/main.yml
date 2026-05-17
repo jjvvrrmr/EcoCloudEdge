@@ -18,15 +18,15 @@
   ansible.builtin.command: k3s kubectl apply -f /tmp/monitoring-helmchart.yaml
   changed_when: false
 
-- name: "Esperar a que Grafana esté Running (descarga pesada, ~5-10 min)"
+- name: "Esperar a que Grafana esté Running (descarga pesada, ~15 min)"
   ansible.builtin.command: >
     k3s kubectl wait --namespace monitoring
     --for=condition=ready pod
     --selector=app.kubernetes.io/name=grafana
-    --timeout=600s
+    --timeout=300s
   register: monitoring_grafana_ready
-  retries: 3
-  delay: 60
+  retries: 20
+  delay: 30
   until: monitoring_grafana_ready.rc == 0
   changed_when: false
 
