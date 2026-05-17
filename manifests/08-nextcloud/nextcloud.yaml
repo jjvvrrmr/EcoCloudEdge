@@ -119,14 +119,21 @@ spec:
             limits:
               memory: "768Mi"
               cpu: "750m"
+          startupProbe:
+            httpGet:
+              path: /login
+              port: 80
+            failureThreshold: 30    # 30 x 15s = 7.5 min máx en primera instalación
+            periodSeconds: 15
+            timeoutSeconds: 10
           readinessProbe:
             httpGet:
               path: /login
               port: 80
-            initialDelaySeconds: 60
+            initialDelaySeconds: 0
             periodSeconds: 20
             timeoutSeconds: 10
-            failureThreshold: 6
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /login
@@ -187,3 +194,4 @@ spec:
                 name: nextcloud-svc
                 port:
                   number: 80
+                  
