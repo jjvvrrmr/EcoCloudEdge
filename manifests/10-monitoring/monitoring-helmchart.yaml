@@ -16,7 +16,7 @@
 # ACCESO A GRAFANA:
 #   Traefik enruta monitor.ecocloud.local → grafana (puerto 80).
 #   Desde el PC cliente, añadir al fichero hosts:
-#     192.168.1.81  monitor.ecocloud.local
+#     192.168.1.80  monitor.ecocloud.local
 #   Credenciales: admin / <valor de GRAFANA_ADMIN_PASSWORD>
 #
 # DASHBOARDS RECOMENDADOS (importar por ID en Grafana → Dashboards → Import):
@@ -36,7 +36,7 @@
 # Verificar:
 #   sudo k3s kubectl get pods -n monitoring
 #   sudo k3s kubectl get svc -n monitoring
-#   curl -I -H "Host: monitor.ecocloud.local" http://192.168.1.81
+#   curl -I -H "Host: monitor.ecocloud.local" http://192.168.1.80
 # ---------------------------------------------------------------------------
 
 # ── Namespace ────────────────────────────────────────────────────────────────
