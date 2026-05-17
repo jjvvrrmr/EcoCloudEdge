@@ -33,7 +33,7 @@
     https://raw.githubusercontent.com/longhorn/longhorn/v1.7.2/deploy/longhorn.yaml
   changed_when: false
 
-- name: "Esperar a que los pods de Longhorn estén Running"
+- name: "Esperar a que los pods de Longhorn estén Running (puede tardar ~15 min)"
   ansible.builtin.command: >
     k3s kubectl wait --namespace longhorn-system
     --for=condition=ready pod
