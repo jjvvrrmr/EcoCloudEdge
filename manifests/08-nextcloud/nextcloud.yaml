@@ -199,4 +199,3 @@ spec:
                 name: nextcloud-svc
                 port:
                   number: 80
-

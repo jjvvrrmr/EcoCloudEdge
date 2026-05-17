@@ -50,8 +50,6 @@ data:
 
     OLLAMA_URL = "http://ollama-svc:11434/api/generate"
     OLLAMA_TIMEOUT = 120
-
-
     class WebhookHandler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
             print(f"[middleware] {format % args}")
@@ -125,8 +123,6 @@ data:
                 self.wfile.write(
                     json.dumps({"error": str(e)}).encode("utf-8")
                 )
-
-
     if __name__ == "__main__":
         server = HTTPServer(("0.0.0.0", 5000), WebhookHandler)
         print("[middleware] Activo en puerto 5000...")
@@ -205,4 +201,3 @@ spec:
       port: 5000
       targetPort: 5000
       protocol: TCP
-
