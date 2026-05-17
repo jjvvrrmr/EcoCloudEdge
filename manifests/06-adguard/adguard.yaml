@@ -23,6 +23,7 @@
 # ---------------------------------------------------------------------------
 
 # ── PVC para datos de trabajo (logs, caché, estadísticas) ───────────────────
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -38,6 +39,7 @@ spec:
       storage: 2Gi
 ---
 # ── PVC para configuración persistente ──────────────────────────────────────
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -53,6 +55,7 @@ spec:
       storage: 1Gi
 ---
 # ── Deployment ──────────────────────────────────────────────────────────────
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -121,6 +124,7 @@ spec:
             claimName: adguard-conf
 ---
 # ── Service LoadBalancer ─────────────────────────────────────────────────────
+---
 apiVersion: v1
 kind: Service
 metadata:

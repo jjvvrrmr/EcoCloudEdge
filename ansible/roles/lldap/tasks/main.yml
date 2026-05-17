@@ -6,49 +6,57 @@
 #   3. strategy.type: Recreate       → Interbloqueo RWO con RollingUpdate
 
 - name: "Copiar manifiesto corregido de LLDAP"
-  template:
+  ansible.builtin.template:
     src: lldap.yaml.j2
     dest: /tmp/lldap.yaml
+    mode: '0644'
 
 - name: "Aplicar manifiesto de LLDAP (PVC + Deployment + Service)"
-  command: k3s kubectl apply -f /tmp/lldap.yaml
+  ansible.builtin.command: k3s kubectl apply -f /tmp/lldap.yaml
+  changed_when: false
 
 - name: "Esperar a que LLDAP esté Running"
-  command: >
+  ansible.builtin.command: >
     k3s kubectl wait --namespace default
     --for=condition=ready pod
     --selector=app=lldap
     --timeout=180s
-  register: lldap_ready
+  register: lldap_lldap_ready
   retries: 3
   delay: 15
-  until: lldap_ready.rc == 0
+  until: lldap_lldap_ready.rc == 0
+  changed_when: false
 
 - name: "Copiar manifiesto de AdGuard Home"
-  template:
+  ansible.builtin.template:
     src: adguard.yaml.j2
     dest: /tmp/adguard.yaml
+    mode: '0644'
 
 - name: "Aplicar manifiesto de AdGuard Home"
-  command: k3s kubectl apply -f /tmp/adguard.yaml
+  ansible.builtin.command: k3s kubectl apply -f /tmp/adguard.yaml
+  changed_when: false
 
 - name: "Esperar a que AdGuard reciba IP externa de MetalLB"
-  command: >
+  ansible.builtin.command: >
     k3s kubectl get svc adguard-svc -n default
     -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-  register: adguard_ip
-  until: adguard_ip.stdout != ""
+  register: lldap_adguard_ip
+  until: lldap_adguard_ip.stdout != ""
   retries: 12
   delay: 10
+  changed_when: false
 
 - name: "Mostrar IP asignada a AdGuard"
-  debug:
-    msg: "AdGuard Home disponible en http://{{ adguard_ip.stdout }}:3000"
+  ansible.builtin.debug:
+    msg: "AdGuard Home disponible en http://{{ lldap_adguard_ip.stdout }}:3000"
 
 - name: "Verificar pods de identidad y DNS"
-  command: k3s kubectl get pods -n default -l "app in (lldap,adguard)"
-  register: hito3_pods
+  ansible.builtin.command: >
+    k3s kubectl get pods -n default -l "app in (lldap,adguard)"
+  register: lldap_hito3_pods
+  changed_when: false
 
 - name: "Mostrar estado del Hito 3"
-  debug:
-    var: hito3_pods.stdout_lines
+  ansible.builtin.debug:
+    var: lldap_hito3_pods.stdout_lines

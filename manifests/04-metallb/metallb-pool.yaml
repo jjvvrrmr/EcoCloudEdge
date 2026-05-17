@@ -1,3 +1,4 @@
+---
 # manifests/04-metallb/metallb-pool.yaml
 #
 # Pool de IPs y anuncio L2 para MetalLB v0.14.3.

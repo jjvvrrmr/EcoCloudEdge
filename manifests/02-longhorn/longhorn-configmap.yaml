@@ -1,3 +1,4 @@
+---
 # manifests/02-longhorn/longhorn-configmap.yaml
 #
 # ConfigMap que limita Longhorn a 2 réplicas por volumen.

@@ -42,6 +42,7 @@
 # ---------------------------------------------------------------------------
 
 # ── Almacenamiento persistente ──────────────────────────────────────────────
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -57,6 +58,7 @@ spec:
       storage: 1Gi
 ---
 # ── Deployment ──────────────────────────────────────────────────────────────
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -121,16 +123,17 @@ spec:
             claimName: lldap-data
 ---
 # ── Service ─────────────────────────────────────────────────────────────────
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: lldap-svc
   namespace: default
   labels:
-    app: lldap                  # Label en el Service (incidencia 7.2.2 del TFG:
-                                # sin este label, kubectl get svc -l app=lldap
-                                # devolvía vacío porque el filtro actúa sobre
-                                # metadata.labels del objeto Service, no del selector)
+    # Label en el Service (incidencia 7.2.2 del TFG): sin este label,
+    # kubectl get svc -l app=lldap devolvía vacío porque el filtro actúa
+    # sobre metadata.labels del objeto Service, no del selector del pod.
+    app: lldap
 spec:
   selector:
     app: lldap

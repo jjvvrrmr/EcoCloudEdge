@@ -2,28 +2,28 @@
 # HITO 1 — Preparación base (todos los nodos)
 - name: Preparar SO base
   hosts: all
-  become: yes
+  become: true
   roles:
     - base
 
 # HITO 1 — Control Plane
 - name: Desplegar k3s master
   hosts: master
-  become: yes
+  become: true
   roles:
     - k3s_master
 
 # HITO 1 — Workers
 - name: Unir workers al clúster
   hosts: workers
-  become: yes
+  become: true
   roles:
     - k3s_worker
 
 # HITOS 2-6 — Todo desde el master
 - name: Desplegar infraestructura completa
   hosts: master
-  become: yes
+  become: true
   roles:
     - longhorn
     - traefik
@@ -32,4 +32,4 @@
     - nextcloud
     - ollama
     - monitoring
-    
+

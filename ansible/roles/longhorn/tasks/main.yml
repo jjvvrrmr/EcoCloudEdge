@@ -1,16 +1,18 @@
+---
 # ansible/roles/longhorn/tasks/main.yml
 # Hito 2 — Almacenamiento distribuido con límite de 2 réplicas
 # Motivo del límite: red de 100 Mbps se satura con 3 réplicas (incidencia documentada)
 
----
 - name: "Crear namespace longhorn-system"
-  command: k3s kubectl create namespace longhorn-system
-  register: ns_create
-  failed_when: ns_create.rc != 0 and 'already exists' not in ns_create.stderr
+  ansible.builtin.command: k3s kubectl create namespace longhorn-system
+  register: longhorn_ns_create
+  failed_when: longhorn_ns_create.rc != 0 and 'already exists' not in longhorn_ns_create.stderr
+  changed_when: longhorn_ns_create.rc == 0
 
 - name: "Copiar ConfigMap de réplicas al nodo"
-  copy:
+  ansible.builtin.copy:
     dest: /tmp/longhorn-configmap.yaml
+    mode: '0644'
     content: |
       apiVersion: v1
       kind: ConfigMap
@@ -22,15 +24,17 @@
           default-replica-count: 2
 
 - name: "Aplicar ConfigMap de réplicas"
-  command: k3s kubectl apply -f /tmp/longhorn-configmap.yaml
+  ansible.builtin.command: k3s kubectl apply -f /tmp/longhorn-configmap.yaml
+  changed_when: false
 
 - name: "Desplegar Longhorn v1.7.2"
-  command: >
+  ansible.builtin.command: >
     k3s kubectl apply -f
     https://raw.githubusercontent.com/longhorn/longhorn/v1.7.2/deploy/longhorn.yaml
+  changed_when: false
 
 - name: "Esperar a que los pods de Longhorn estén Running"
-  command: >
+  ansible.builtin.command: >
     k3s kubectl wait --namespace longhorn-system
     --for=condition=ready pod
     --selector=app=longhorn-manager
@@ -39,11 +43,13 @@
   retries: 3
   delay: 30
   until: longhorn_ready.rc == 0
+  changed_when: false
 
 - name: "Verificar pods de Longhorn"
-  command: k3s kubectl get pods -n longhorn-system
+  ansible.builtin.command: k3s kubectl get pods -n longhorn-system
   register: longhorn_pods
+  changed_when: false
 
 - name: "Mostrar estado de Longhorn"
-  debug:
+  ansible.builtin.debug:
     var: longhorn_pods.stdout_lines

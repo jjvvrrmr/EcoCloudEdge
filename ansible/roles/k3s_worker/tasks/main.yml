@@ -1,23 +1,26 @@
 ---
 # ansible/roles/k3s_worker/tasks/main.yml
 # Hito 1 — Unión de Workers al clúster
-# Usa el token extraído por el rol k3s_master
 
 - name: "Comprobar si el agente k3s ya está instalado"
-  stat:
+  ansible.builtin.stat:
     path: /usr/local/bin/k3s
-  register: k3s_agent_binary
+  register: k3s_worker_agent_binary
 
 - name: "Unir el Worker al clúster"
-  shell: |
-    curl -sfL https://get.k3s.io | \
-      K3S_URL=https://{{ hostvars[groups['master'][0]]['ansible_host'] }}:6443 \
-      K3S_TOKEN="{{ hostvars[groups['master'][0]]['k3s_node_token'] }}" \
-      sh -
-  when: not k3s_agent_binary.stat.exists
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -sfL https://get.k3s.io \
+      | K3S_URL=https://{{ hostvars[groups['master'][0]]['ansible_host'] }}:6443 \
+        K3S_TOKEN="{{ hostvars[groups['master'][0]]['k3s_master_node_token'] }}" \
+        sh -
+  args:
+    executable: /bin/bash
+  when: not k3s_worker_agent_binary.stat.exists
+  changed_when: not k3s_worker_agent_binary.stat.exists
 
 - name: "Esperar a que el agente esté activo"
-  systemd:
+  ansible.builtin.systemd:
     name: k3s-agent
     state: started
     enabled: true

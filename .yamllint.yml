@@ -21,3 +21,5 @@ ignore: |
   .git/
   venv/
   *.j2
+  manifests/05-lldap/lldap-sealedsecret.yaml
+  manifests/08-nextcloud/nextcloud-sealedsecret.yaml

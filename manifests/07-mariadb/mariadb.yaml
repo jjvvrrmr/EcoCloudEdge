@@ -25,6 +25,7 @@
 # ---------------------------------------------------------------------------
 
 # ── Almacenamiento persistente ──────────────────────────────────────────────
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -40,6 +41,7 @@ spec:
       storage: 5Gi
 ---
 # ── Deployment ──────────────────────────────────────────────────────────────
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -109,6 +111,7 @@ spec:
             claimName: mariadb-data
 ---
 # ── Service ClusterIP (solo accesible dentro del clúster) ───────────────────
+---
 apiVersion: v1
 kind: Service
 metadata:

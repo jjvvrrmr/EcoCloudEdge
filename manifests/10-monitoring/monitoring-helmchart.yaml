@@ -40,12 +40,14 @@
 # ---------------------------------------------------------------------------
 
 # ── Namespace ────────────────────────────────────────────────────────────────
+---
 apiVersion: v1
 kind: Namespace
 metadata:
   name: monitoring
 ---
 # ── HelmChart — kube-prometheus-stack ────────────────────────────────────────
+---
 apiVersion: helm.cattle.io/v1
 kind: HelmChart
 metadata:

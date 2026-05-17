@@ -34,6 +34,7 @@
 # ---------------------------------------------------------------------------
 
 # ── ConfigMap con el código Python ──────────────────────────────────────────
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -132,6 +133,7 @@ data:
         server.serve_forever()
 ---
 # ── Deployment ──────────────────────────────────────────────────────────────
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -187,6 +189,7 @@ spec:
             name: middleware-script
 ---
 # ── Service ClusterIP ────────────────────────────────────────────────────────
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -202,4 +205,4 @@ spec:
       port: 5000
       targetPort: 5000
       protocol: TCP
-      
+

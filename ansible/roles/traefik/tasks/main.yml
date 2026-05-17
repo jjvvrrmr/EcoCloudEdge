@@ -2,9 +2,10 @@
 # ansible/roles/traefik/tasks/main.yml
 # Hito 2 — Despliegue de Traefik via HelmChart nativo de k3s
 
-- name: "Desplegar Traefik via HelmChart nativo de k3s"
-  copy:
+- name: "Copiar HelmChart de Traefik al nodo"
+  ansible.builtin.copy:
     dest: /tmp/traefik-helmchart.yaml
+    mode: '0644'
     content: |
       apiVersion: helm.cattle.io/v1
       kind: HelmChart
@@ -17,10 +18,11 @@
         targetNamespace: kube-system
 
 - name: "Aplicar HelmChart de Traefik"
-  command: k3s kubectl apply -f /tmp/traefik-helmchart.yaml
+  ansible.builtin.command: k3s kubectl apply -f /tmp/traefik-helmchart.yaml
+  changed_when: false
 
 - name: "Esperar a que Traefik esté Running"
-  command: >
+  ansible.builtin.command: >
     k3s kubectl wait --namespace kube-system
     --for=condition=ready pod
     --selector=app.kubernetes.io/name=traefik
@@ -29,11 +31,14 @@
   retries: 5
   delay: 20
   until: traefik_ready.rc == 0
+  changed_when: false
 
 - name: "Verificar pod de Traefik"
-  command: k3s kubectl get pods -n kube-system -l app.kubernetes.io/name=traefik
+  ansible.builtin.command: >
+    k3s kubectl get pods -n kube-system -l app.kubernetes.io/name=traefik
   register: traefik_status
+  changed_when: false
 
 - name: "Mostrar estado de Traefik"
-  debug:
+  ansible.builtin.debug:
     var: traefik_status.stdout_lines

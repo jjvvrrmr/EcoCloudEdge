@@ -1,3 +1,4 @@
+---
 # manifests/03-traefik/traefik-helmchart.yaml
 #
 # Despliega Traefik como Ingress Controller y proxy inverso

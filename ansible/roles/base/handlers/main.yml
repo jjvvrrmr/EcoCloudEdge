@@ -1,0 +1,7 @@
+---
+# ansible/roles/base/handlers/main.yml
+
+- name: "Reiniciar nodo para aplicar cgroups"
+  ansible.builtin.reboot:
+    msg: "Reinicio para aplicar cgroups"
+    reboot_timeout: 120

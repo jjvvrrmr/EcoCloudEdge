@@ -19,7 +19,7 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   # ──────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ jobs:
           OUTPUT=$(yamllint manifests/ ansible/ .github/workflows/ 2>&1)
           EXIT_CODE=$?
           set -e
-          
+
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ **Se encontraron errores de formato YAML:**" >> $GITHUB_STEP_SUMMARY
             echo "<details><summary>Haz clic para ver los detalles del error</summary>" >> $GITHUB_STEP_SUMMARY
@@ -75,10 +75,17 @@ jobs:
         run: |
           echo "### ☸️ Resultados de Kubeconform" >> $GITHUB_STEP_SUMMARY
           set +e
-          OUTPUT=$(find manifests/ -name "*.yaml" ! -name "*.j2" ! -name "*sealedsecret*" | grep -v "template" | xargs kubeconform -strict -ignore-missing-schemas -schema-location default -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' -summary 2>&1)
+          CRD_SCHEMA='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main'
+          CRD_SCHEMA="${CRD_SCHEMA}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
+          OUTPUT=$(find manifests/ -name "*.yaml" ! -name "*.j2" ! -name "*sealedsecret*" \
+            | grep -v "template" \
+            | xargs kubeconform -strict -ignore-missing-schemas \
+                -schema-location default \
+                -schema-location "${CRD_SCHEMA}" \
+                -summary 2>&1)
           EXIT_CODE=$?
           set -e
-          
+
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ **Se encontraron errores en los manifiestos de Kubernetes:**" >> $GITHUB_STEP_SUMMARY
             echo "<details><summary>Haz clic para ver los detalles</summary>" >> $GITHUB_STEP_SUMMARY
@@ -113,7 +120,7 @@ jobs:
           OUTPUT=$(ansible-lint site.yml 2>&1)
           EXIT_CODE=$?
           set -e
-          
+
           if [ $EXIT_CODE -ne 0 ]; then
             echo "❌ **Se encontraron problemas en los playbooks o roles:**" >> $GITHUB_STEP_SUMMARY
             echo "<details><summary>Haz clic para ver los detalles del error</summary>" >> $GITHUB_STEP_SUMMARY
@@ -148,7 +155,7 @@ jobs:
             OUTPUT=$(flake8 middleware/ --max-line-length=100 2>&1)
             EXIT_CODE=$?
             set -e
-            
+
             if [ $EXIT_CODE -ne 0 ]; then
               echo "❌ **Se encontraron problemas en el código Python:**" >> $GITHUB_STEP_SUMMARY
               echo "<details><summary>Haz clic para ver los detalles del error</summary>" >> $GITHUB_STEP_SUMMARY

@@ -1,45 +1,50 @@
 ---
 # ansible/roles/k3s_master/tasks/main.yml
 # Hito 1 — Despliegue del Control Plane en node1
-# Instala k3s sin Traefik ni ServiceLB (se desplegarán personalizados en Hito 2)
 
 - name: "Comprobar si k3s ya está instalado"
-  stat:
+  ansible.builtin.stat:
     path: /usr/local/bin/k3s
-  register: k3s_binary
+  register: k3s_master_binary
 
-- name: Instalar k3s en el nodo maestro
-  shell: |
-    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik --disable servicelb --disable local-storage" sh -
+- name: "Instalar k3s en el nodo maestro"
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -sfL https://get.k3s.io \
+      | INSTALL_K3S_EXEC="--disable traefik --disable servicelb --disable local-storage" sh -
   args:
     creates: /etc/rancher/k3s/k3s.yaml
+    executable: /bin/bash
+  changed_when: not k3s_master_binary.stat.exists
 
 - name: "Esperar a que k3s esté listo"
-  command: k3s kubectl get nodes
-  register: nodes_ready
-  until: nodes_ready.rc == 0
+  ansible.builtin.command: k3s kubectl get nodes
+  register: k3s_master_nodes_ready
+  until: k3s_master_nodes_ready.rc == 0
   retries: 15
   delay: 10
+  changed_when: false
 
 - name: "Leer el node-token para los Workers"
-  slurp:
+  ansible.builtin.slurp:
     src: /var/lib/rancher/k3s/server/node-token
-  register: k3s_token_raw
+  register: k3s_master_token_raw
 
 - name: "Guardar el token como fact para que los Workers lo usen"
-  set_fact:
-    k3s_node_token: "{{ k3s_token_raw.content | b64decode | trim }}"
+  ansible.builtin.set_fact:
+    k3s_master_node_token: "{{ k3s_master_token_raw.content | b64decode | trim }}"
 
 - name: "Compartir el token con todos los hosts del inventario"
-  add_host:
+  ansible.builtin.add_host:
     name: "{{ item }}"
-    k3s_node_token: "{{ k3s_node_token }}"
+    k3s_master_node_token: "{{ k3s_master_node_token }}"
   loop: "{{ groups['workers'] }}"
 
 - name: "Verificar estado del clúster"
-  command: k3s kubectl get nodes
-  register: cluster_status
+  ansible.builtin.command: k3s kubectl get nodes
+  register: k3s_master_cluster_status
+  changed_when: false
 
 - name: "Mostrar estado del clúster"
-  debug:
-    var: cluster_status.stdout_lines
+  ansible.builtin.debug:
+    var: k3s_master_cluster_status.stdout_lines

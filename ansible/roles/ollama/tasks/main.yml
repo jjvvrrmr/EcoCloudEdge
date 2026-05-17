@@ -5,58 +5,68 @@
 # Los nodos tienen 4GB — OOMKiller mataría cualquier modelo más grande (incidencia documentada)
 
 - name: "Copiar manifiesto de Ollama"
-  template:
+  ansible.builtin.template:
     src: ollama.yaml.j2
     dest: /tmp/ollama.yaml
+    mode: '0644'
 
 - name: "Aplicar Ollama"
-  command: k3s kubectl apply -f /tmp/ollama.yaml
+  ansible.builtin.command: k3s kubectl apply -f /tmp/ollama.yaml
+  changed_when: false
 
 - name: "Esperar a que Ollama esté Running"
-  command: >
+  ansible.builtin.command: >
     k3s kubectl wait --namespace default
     --for=condition=ready pod
     --selector=app=ollama
     --timeout=300s
-  register: ollama_ready
+  register: ollama_pod_ready
   retries: 5
   delay: 20
-  until: ollama_ready.rc == 0
+  until: ollama_pod_ready.rc == 0
+  changed_when: false
 
 - name: "Descargar modelo TinyLlama (650MB aprox, paciencia con la red de 100Mbps)"
-  command: k3s kubectl exec deploy/ollama -- ollama pull tinyllama
-  register: model_pull
+  ansible.builtin.command: k3s kubectl exec deploy/ollama -- ollama pull tinyllama
+  register: ollama_model_pull
   async: 1800
   poll: 30
+  changed_when: "'success' in ollama_model_pull.stdout or ollama_model_pull.rc == 0"
 
 - name: "Copiar código Python del middleware al nodo"
-  copy:
+  ansible.builtin.copy:
     src: ../../../middleware/main.py
     dest: /tmp/middleware-main.py
+    mode: '0644'
 
 - name: "Copiar manifiesto del middleware"
-  template:
+  ansible.builtin.template:
     src: middleware.yaml.j2
     dest: /tmp/middleware.yaml
+    mode: '0644'
 
 - name: "Aplicar middleware Python"
-  command: k3s kubectl apply -f /tmp/middleware.yaml
+  ansible.builtin.command: k3s kubectl apply -f /tmp/middleware.yaml
+  changed_when: false
 
 - name: "Esperar a que el middleware esté Running"
-  command: >
+  ansible.builtin.command: >
     k3s kubectl wait --namespace default
     --for=condition=ready pod
     --selector=app=middleware
     --timeout=120s
-  register: middleware_ready
+  register: ollama_middleware_ready
   retries: 3
   delay: 15
-  until: middleware_ready.rc == 0
+  until: ollama_middleware_ready.rc == 0
+  changed_when: false
 
 - name: "Verificar pods del Hito 5"
-  command: k3s kubectl get pods -n default -l "app in (ollama,middleware)"
-  register: hito5_pods
+  ansible.builtin.command: >
+    k3s kubectl get pods -n default -l "app in (ollama,middleware)"
+  register: ollama_hito5_pods
+  changed_when: false
 
 - name: "Mostrar estado del Hito 5"
-  debug:
-    var: hito5_pods.stdout_lines
+  ansible.builtin.debug:
+    var: ollama_hito5_pods.stdout_lines
