@@ -12,7 +12,7 @@
   ansible.builtin.command: k3s kubectl apply -f /tmp/mariadb.yaml
   changed_when: false
 
-- name: "Esperar a que MariaDB esté Running"
+- name: "Esperar a que MariaDB esté Running (puede tardar ~5 min)"
   ansible.builtin.command: >
     k3s kubectl wait --namespace default
     --for=condition=ready pod
@@ -34,7 +34,7 @@
   ansible.builtin.command: k3s kubectl apply -f /tmp/nextcloud.yaml
   changed_when: false
 
-- name: "Esperar a que Nextcloud esté Running (puede tardar ~5 min en primera ejecución)"
+- name: "Esperar a que Nextcloud esté Running (puede tardar ~5 min)"
   ansible.builtin.command: >
     k3s kubectl wait --namespace default
     --for=condition=ready pod
