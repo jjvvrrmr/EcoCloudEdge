@@ -329,10 +329,10 @@ sudo k3s kubectl get svc -A | grep LoadBalancer
 
 1. Abre `http://monitor.ecocloud.local`
 2. Usuario: `admin` / Contraseña: (el valor de `grafana_admin_password`)
-3. Ir a **Dashboards → Import** e importar estos IDs:
-   - `1860` — Node Exporter Full (CPU, RAM, disco y red por nodo)
-   - `13032` — k3s Cluster (estado del clúster, pods, deployments)
-   - `13200` — Longhorn (volúmenes y réplicas)
+3. **Dashboards por defecto:** El stack de monitorización ya incluye de serie decenas de dashboards preconfigurados para Kubernetes. Puedes ir a **Dashboards → Browse** y explorar el estado de los nodos, pods, uso de red y recursos del clúster k3s directamente sin tener que importar nada.
+4. **Dashboards adicionales (Recomendados):** Si quieres vistas más específicas para el hardware físico y el almacenamiento distribuido, ve a **Dashboards → Import** e importa estos IDs:
+   - `1860` — Node Exporter Full (CPU, RAM, disco y red detallado para cada Raspberry Pi)
+   - `13032` — Longhorn (estado de los volúmenes, cuotas de almacenamiento y réplicas)
 
 ---
 
