@@ -14,7 +14,7 @@
   ansible.builtin.command: k3s kubectl apply -f /tmp/ollama.yaml
   changed_when: false
 
-- name: "Esperar a que Ollama esté Running"
+- name: "Esperar a que Ollama esté Running (puede tardar ~15 min)"
   ansible.builtin.command: >
     k3s kubectl wait --namespace default
     --for=condition=ready pod
