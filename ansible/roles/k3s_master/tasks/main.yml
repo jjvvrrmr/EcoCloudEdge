@@ -8,7 +8,7 @@
     path: /usr/local/bin/k3s
   register: k3s_binary
 
-- name: Instalara k3s en el nodo maestro
+- name: Instalar k3s en el nodo maestro
   shell: |
     curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik --disable servicelb --disable local-storage" sh -
   args:
