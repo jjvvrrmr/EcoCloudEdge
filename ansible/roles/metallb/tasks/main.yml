@@ -8,12 +8,12 @@
     https://raw.githubusercontent.com/metallb/metallb/v0.14.3/config/manifests/metallb-native.yaml
   changed_when: false
 
-- name: "Esperar a que los pods de MetalLB estén listos"
+- name: "Esperar a que los pods de MetalLB estén listos (puede tardar ~10 min)"
   ansible.builtin.command: >
     k3s kubectl wait --namespace metallb-system
     --for=condition=ready pod
     --selector=app=metallb
-    --timeout=120s
+    --timeout=300s
   changed_when: false
 
 - name: "Copiar configuración del pool de IPs"
