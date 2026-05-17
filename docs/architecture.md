@@ -61,7 +61,7 @@ Usuario
 AdGuard Home (DNS) ──► resuelve *.ecocloud.local → 192.168.1.81
   │
   ▼
-MetalLB (192.168.1.81) ──► balancea tráfico hacia Traefik
+MetalLB (192.168.1.80) ──► balancea tráfico hacia Traefik
   │
   ▼
 Traefik (IngressController) ──► enruta por Host: header
@@ -192,8 +192,8 @@ MetalLB Pool: 192.168.1.80 – 192.168.1.90
 | Servicio | Dominio interno | IP MetalLB | Puerto externo |
 |----------|-----------------|------------|----------------|
 | AdGuard Home (DNS) | — | 192.168.1.80 | UDP/TCP 53 |
-| Nextcloud | nubes.ecocloud.local | 192.168.1.81 | 80 / 443 |
-| Grafana | monitor.ecocloud.local | 192.168.1.81 | 80 / 443 |
+| Nextcloud | nubes.ecocloud.local | 192.168.1.80 | 80 / 443 |
+| Grafana | monitor.ecocloud.local | 192.168.1.80 | 80 / 443 |
 | LLDAP (panel web) | — | ClusterIP | :17170 |
 | Middleware Python | — | ClusterIP | :5000 (interno) |
 | Ollama API | — | ClusterIP | :11434 (interno) |
@@ -201,7 +201,7 @@ MetalLB Pool: 192.168.1.80 – 192.168.1.90
 > Los clientes de la red local deben apuntar su DNS a **192.168.1.80** (AdGuard Home)
 > o añadir entradas en `/etc/hosts` / en el router para resolver `*.ecocloud.local`.
 
-Nextcloud y Grafana comparten la IP `192.168.1.81` y Traefik los diferencia por
+Nextcloud y Grafana comparten la IP `192.168.1.80` (Traefik) y Traefik los diferencia por
 la cabecera `Host:` del request HTTP (virtual hosting).
 
 ---
