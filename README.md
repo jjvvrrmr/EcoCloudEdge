@@ -322,6 +322,8 @@ sudo k3s kubectl get svc -A | grep LoadBalancer
    - **Contraseña:** (el valor de `lldap_ldap_user_pass`)
    - **Base DN:** `dc=ecocloud,dc=local`
 4. Clic en **Guardar credenciales** primero, después en **Probar Base DN**
+5. **Validación y uso:** Si el indicador se pone en verde, la conexión está guardada de forma definitiva. A partir de este momento, puedes cerrar sesión y entrar con cualquier usuario que esté dado de alta en LLDAP. 
+   *Nota: El primer inicio de sesión de un usuario de LLDAP tardará un poco más de lo habitual, ya que Nextcloud tiene que consultar al directorio activo, validar las credenciales internamente por el puerto 3890 y                 aprovisionar el espacio de almacenamiento local para ese nuevo perfil. Los accesos posteriores serán inmediatos.*
 
 ---
 
