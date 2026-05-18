@@ -354,11 +354,16 @@ sudo k3s kubectl get svc adguard-svc
 # Hito 4 — Nextcloud respondiendo (HTTP 200)
 curl -I -H "Host: nubes.ecocloud.local" http://192.168.1.80
 
-# Hito 5 — IA respondiendo
+# Hito 5 — IA respondiendo y ejecución de inferencia
+# Opción A: Prueba a través de la API del Middleware (se recomienda usar inglés debido a las limitaciones de comprensión del modelo TinyLlama 1.1B)
 sudo k3s kubectl run curl-test --image=curlimages/curl:latest --rm -i --tty -- \
   curl -s -X POST http://middleware-svc:5000 \
   -H "Content-Type: application/json" \
-  -d '{"prompt":"¿De qué color es el cielo?"}'
+  -d '{"prompt":"What color is the sky?"}'
+
+# Opción B: Consola interactiva directa (REPL) con el motor de Ollama en tiempo real
+# (Para salir de la consola, escribe /bye o pulsa Ctrl + D)
+sudo k3s kubectl exec -it deploy/ollama -n default -- ollama run tinyllama
 
 # Hito 6 — Grafana accesible (HTTP 302 → login)
 curl -I -H "Host: monitor.ecocloud.local" http://192.168.1.80
